@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "types": ["node"],
+    "jsx": "preserve",
+    "resolveJsonModule": true
+  },
+  "exclude": ["node_modules", "renderer"]
+}

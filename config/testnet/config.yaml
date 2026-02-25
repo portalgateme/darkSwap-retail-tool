@@ -1,0 +1,9 @@
+chainRpcs:
+  - chainId: 845320009
+    rpcUrl: 'https://horizen-rpc-testnet.appchain.base.org/'
+  - chainId: 11155111
+    rpcUrl: 'https://api.zan.top/eth-sepolia'
+
+dbFilePath: 'darkSwap-testnet.db'
+bookNodeSocketUrl: 'ws://stage.portalgate.me:20002'
+bookNodeApiUrl: 'https://stage.portalgate.me:20001'

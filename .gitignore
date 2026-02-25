@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Node.js
+node_modules/
+
+# Environment variables
+.env
+
+
+# Electron
+release/
+dist/
+build/
+
+# Next.js
+renderer/.next
+renderer/out
+
+# Database
+app.db

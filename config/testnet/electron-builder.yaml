@@ -1,0 +1,27 @@
+appId: 'com.darkswap.desktop'
+productName: 'Darkswap'
+artifactName: '${productName}-setup-${version}-testnet.${ext}'
+directories:
+  output: 'release/testnet'
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+files:
+  - 'dist/**/**/*'
+  - 'package.json'
+extraResources:
+  - from: 'config/testnet/config.yaml'
+    to: 'config.yaml'
+  - from: 'assets/icon.ico'
+    to: 'icon.ico'
+win:
+  target:
+    - target: 'nsis'
+      arch:
+        - 'x64'
+mac:
+  target:
+    - 'dmg'
+  icon: 'assets/icon.icns'
+linux:
+  target:
+    - 'AppImage'

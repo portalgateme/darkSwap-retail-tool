@@ -1,0 +1,109 @@
+export default {
+  tables: [
+    `CREATE TABLE IF NOT EXISTS NOTES (
+                                                id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                                                chainId INTEGER NOT NULL, 
+                                                publicKey TEXT NOT NULL, 
+                                                wallet TEXT NOT NULL,
+                                                type INTEGER NOT NULL,
+                                                noteCommitment TEXT NOT NULL, 
+                                                rho TEXT NOT NULL, 
+                                                asset TEXT NOT NULL, 
+                                                amount TEXT NOT NULL,
+                                                status INTEGER NOT NULL,
+                                                txHashCreated TEXT,
+                                                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                UNIQUE(chainId, publicKey, wallet, noteCommitment)  -- Prevent duplicates based on these fields
+                                                );`,
+
+    `CREATE TABLE IF NOT EXISTS ASSET_PAIRS (
+                                                id TEXT NOT NULL,
+                                                chainId INTEGER NOT NULL,
+                                                baseAddress TEXT NOT NULL,
+                                                baseSymbol TEXT NOT NULL,
+                                                baseDecimal INTEGER NOT NULL,
+                                                quoteAddress TEXT NOT NULL,
+                                                quoteSymbol TEXT NOT NULL,
+                                                quoteDecimal INTEGER NOT NULL,
+                                                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                PRIMARY KEY (id, chainId)
+                                                );`,
+
+    `CREATE TABLE IF NOT EXISTS ORDERS (
+                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                orderId TEXT NOT NULL,
+                                                chainId INTEGER NOT NULL, 
+                                                assetPairId TEXT NOT NULL,
+                                                orderDirection INTEGER NOT NULL,
+                                                orderType INTEGER NOT NULL,
+                                                timeInForce INTEGER NOT NULL,
+                                                stpMode INTEGER NOT NULL,
+                                                price TEXT NOT NULL,
+                                                amountOut TEXT NOT NULL,
+                                                amountIn TEXT NOT NULL,
+                                                partialAmountIn TEXT NOT NULL,
+                                                feeRatio TEXT NOT NULL,
+                                                status INTEGER NOT NULL,
+                                                wallet TEXT NOT NULL,
+                                                publicKey TEXT NOT NULL,
+                                                noteCommitment TEXT NOT NULL,
+                                                incomingNoteCommitment TEXT,
+                                                nullifier TEXT NOT NULL,
+                                                txHashCreated TEXT,
+                                                txHashSettled TEXT,
+                                                swapMessage TEXT,
+                                                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                UNIQUE(orderId, chainId)  -- Prevent duplicates based on orderId and chainId
+                                                );`,
+
+    `CREATE TABLE IF NOT EXISTS ORDER_EVENTS (
+                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                chainId INTEGER NOT NULL,
+                                                wallet TEXT NOT NULL,
+                                                orderId TEXT NOT NULL,
+                                                status INTEGER NOT NULL,
+                                                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                UNIQUE(chainId, wallet, orderId, status)
+                                                );`,
+
+    `CREATE TABLE IF NOT EXISTS AUTO_ORDER_JOBS (
+                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                jobId TEXT NOT NULL UNIQUE,
+                                                chainId INTEGER NOT NULL,
+                                                wallet TEXT NOT NULL,
+                                                assetPairId TEXT NOT NULL,
+                                                orderDirection INTEGER NOT NULL,
+                                                orderType INTEGER NOT NULL,
+                                                timeInForce INTEGER NOT NULL,
+                                                stpMode INTEGER NOT NULL,
+                                                price TEXT NOT NULL,
+                                                marketPrice TEXT NOT NULL,
+                                                minPrice TEXT NOT NULL,
+                                                maxPrice TEXT NOT NULL,
+                                                amountOut TEXT NOT NULL,
+                                                feeRatio TEXT NOT NULL,
+                                                startAt INTEGER NOT NULL,
+                                                endAt INTEGER,
+                                                intervalSeconds INTEGER NOT NULL,
+                                                status INTEGER NOT NULL,
+                                                activeOrderId TEXT,
+                                                lastRunAt INTEGER,
+                                                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                UNIQUE(jobId, chainId, wallet)  -- Prevent duplicates based on jobId, chainId, and wallet
+                                                );`,
+
+    `CREATE TABLE IF NOT EXISTS AUTO_ORDER_JOB_ORDERS (
+                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                jobId TEXT NOT NULL,
+                                                orderId TEXT NOT NULL,
+                                                chainId INTEGER NOT NULL,
+                                                wallet TEXT NOT NULL,
+                                                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                                UNIQUE(jobId, orderId, chainId)  -- Prevent duplicates based on jobId, orderId, and chainId
+                                                );`
+  ]
+}
