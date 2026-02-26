@@ -12,7 +12,8 @@ import {
   AutoOrderJobDto,
   AutoOrderJobStatus,
   AutoOrderJobOrderDto,
-  OrderRetailDto
+  OrderRetailDto,
+  AutoOrderCycleState
 } from '../../types'
 
 interface NoteEntity {
@@ -566,6 +567,15 @@ export class DatabaseService {
     )
   }
 
+  public async updateTxCreatedRetailOrderByDto(
+    orderId: string,
+    txHashCreated: string
+  ) {
+    const query = `UPDATE ORDERS SET txHashCreated = ? WHERE orderId = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(txHashCreated, orderId)
+  }
+
   public async getOrdersByStatusAndPage(
     status: number,
     page: number,
@@ -642,6 +652,43 @@ export class DatabaseService {
       nullifier: row.nullifier,
       txHashCreated: row.txHashCreated,
       txHashSettled: row.txHashSettled
+    }
+    return order
+  }
+
+  public async getRetailOrderByOrderId(
+    orderId: string
+  ): Promise<OrderRetailDto | null> {
+    const query = `SELECT * FROM ORDERS WHERE orderId = ?`
+    const stmt = this.db.prepare(query)
+    const row = stmt.get(orderId) as OrderRetailDto
+    if (!row) {
+      return null
+    }
+
+    const order = {
+      id: row.id,
+      orderId: row.orderId,
+      chainId: row.chainId,
+      assetPairId: row.assetPairId,
+      orderDirection: row.orderDirection,
+      orderType: row.orderType,
+      timeInForce: row.timeInForce,
+      stpMode: row.stpMode,
+      price: row.price,
+      amountOut: row.amountOut,
+      amountIn: row.amountIn,
+      partialAmountIn: row.partialAmountIn,
+      feeRatio: row.feeRatio,
+      wallet: row.wallet,
+      status: row.status,
+      publicKey: row.publicKey,
+      noteCommitment: row.noteCommitment,
+      incomingNoteCommitment: row.incomingNoteCommitment,
+      nullifier: row.nullifier,
+      txHashCreated: row.txHashCreated,
+      txHashSettled: row.txHashSettled,
+      swapMessage: row.swapMessage
     }
     return order
   }
@@ -881,8 +928,8 @@ export class DatabaseService {
     const query = `INSERT INTO AUTO_ORDER_JOBS (
       jobId, chainId, wallet, assetPairId, orderDirection, orderType,
       timeInForce, stpMode, price, marketPrice, minPrice, maxPrice, amountOut, feeRatio,
-      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
     const stmt = this.db.prepare(query)
     stmt.run(
@@ -905,7 +952,10 @@ export class DatabaseService {
       job.intervalSeconds,
       job.status ?? AutoOrderJobStatus.ACTIVE,
       job.activeOrderId ?? null,
-      job.lastRunAt ?? null
+      job.lastRunAt ?? null,
+      job.cycleState ?? AutoOrderCycleState.CREATE_SELL,
+      job.startDirection ?? job.orderDirection,
+      job.lastReceivedAmount ?? '0'
     )
   }
 
@@ -1159,8 +1209,6 @@ export class DatabaseService {
       OrderStatus.NOT_TRIGGERED,
       OrderStatus.OPEN
     ) as OrderRetailDto[]
-
-    console.log('rows =>>>>>', rows)
 
     return rows.map((row) => ({
       orderId: row.orderId,

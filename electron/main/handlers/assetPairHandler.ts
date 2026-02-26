@@ -1,19 +1,21 @@
 import { ipcMain } from 'electron'
-import dbInstance, { config, db } from '../database'
+import { db, config } from '../database'
+import { getCurrentInstance } from '../utils/coreReloader'
 
 export const registerAssetPairHandlers = () => {
   ipcMain.handle('assetPair:syncAssetPairs', async (event) => {
+    const dbInstance = getCurrentInstance()
     if (!config) throw new Error('Config not loaded')
     await dbInstance
       .getAssetPairService()
       .syncAssetPairs(config.chainRpcs.map((rpc) => rpc.chainId))
-
     return true
   })
 
   ipcMain.handle(
     'assetPair:syncAssetPair',
     async (event, assetPairId, chainId) => {
+      const dbInstance = getCurrentInstance()
       await dbInstance.getAssetPairService().syncAssetPair(assetPairId, chainId)
       return true
     }

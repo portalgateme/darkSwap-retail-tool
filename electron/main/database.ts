@@ -3,7 +3,10 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { ConfigLoader } from '../utils/configUtil'
 import { app } from 'electron'
-import { DarkSwapClientCore, DarkSwapConfig } from '../../core'
+import {
+  getOrCreateCoreInstance,
+  initializeCoreReloader
+} from './utils/coreReloader'
 
 export const config = ConfigLoader.getInstance().getConfig()
 
@@ -61,23 +64,5 @@ const configs = db.prepare('SELECT * FROM configs').all() as Array<{
 console.log('Loaded wallets from DB:', wallets)
 console.log('Loaded configs from DB:', configs)
 
-const darkSwapConfig: DarkSwapConfig = {
-  wallets: [...config.wallets, ...wallets],
-  chainRpcs: config.chainRpcs || [],
-  dbFilePath: dbPath,
-  bookNodeApiUrl: config.bookNodeApiUrl || 'https://api.darknode.io/api'
-}
-const instance = new DarkSwapClientCore(darkSwapConfig, db)
-
-// Sync asset pairs with BookNode
-instance
-  .getAssetPairService()
-  .syncAssetPairs(config.chainRpcs.map((rpc) => rpc.chainId))
-  .catch((err) => {
-    console.error('Failed to sync asset pairs:', err)
-  })
-// Start auto order scheduler
-instance.getAutoOrderManager().start()
-instance.getRetailOrderManager().startStatusCheck()
-
-export default instance
+initializeCoreReloader({ db, dbPath })
+getOrCreateCoreInstance(db, dbPath, config, wallets)

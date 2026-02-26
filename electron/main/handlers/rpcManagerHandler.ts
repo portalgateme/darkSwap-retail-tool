@@ -1,9 +1,11 @@
 import { ipcMain } from 'electron'
-import dbInstance, { config } from '../database'
+import { config } from '../database'
+import { getCurrentInstance } from '../utils/coreReloader'
 
 export const registerRPCManagerHandlers = () => {
   // get Provider
   ipcMain.handle('rpcManager:getProvider', async (event, chainId: number) => {
+    const dbInstance = getCurrentInstance()
     const rpcManager = dbInstance.getRpcManager().getProvider(chainId)
     return rpcManager
   })
@@ -12,6 +14,7 @@ export const registerRPCManagerHandlers = () => {
   ipcMain.handle(
     'rpcManager:getSignerForUserSwapRelayer',
     async (event, chainId: number) => {
+      const dbInstance = getCurrentInstance()
       const rpcManager = dbInstance
         .getRpcManager()
         .getSignerForUserSwapRelayer(chainId)
@@ -23,6 +26,7 @@ export const registerRPCManagerHandlers = () => {
   ipcMain.handle(
     'rpcManager:getSignerAndPublicKey',
     async (event, walletAddress: string, chainId: number) => {
+      const dbInstance = getCurrentInstance()
       const rpcManager = dbInstance
         .getRpcManager()
         .getSignerAndPublicKey(walletAddress, chainId)
@@ -32,6 +36,7 @@ export const registerRPCManagerHandlers = () => {
 
   // reloadProviders
   ipcMain.handle('rpcManager:reloadProviders', () => {
+    const dbInstance = getCurrentInstance()
     dbInstance.getRpcManager().reloadProviders()
     return true
   })

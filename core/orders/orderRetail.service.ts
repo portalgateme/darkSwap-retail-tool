@@ -1,6 +1,5 @@
 import {
   DarkSwapOrderNote,
-  DarkSwapNote,
   DarkSwapError,
   RetailCreateOrderService,
   RetailCancelOrderService,
@@ -8,7 +7,6 @@ import {
   deserializeDarkSwapMessage
 } from '@thesingularitynetwork/darkswap-sdk'
 import { v4 } from 'uuid'
-import { BooknodeService } from '../common/booknode.service'
 import { DarkSwapContext } from '../common/context/darkSwap.context'
 import { DatabaseService } from '../common/db/database.service'
 import { getConfirmations } from '../config/networkConfig'
@@ -36,23 +34,20 @@ export class OrderRetailService {
   private readonly logger = new Logger({ name: OrderRetailService.name })
 
   private dbService: DatabaseService
-  private noteService: NoteService
-  private bookNodeService: BooknodeService
   private orderEventService: OrderEventService
+  private noteService: NoteService
   private rpcManager: RpcManager
 
   public constructor(
     dbService: DatabaseService,
-    noteService: NoteService,
-    bookNodeService: BooknodeService,
     orderEventService: OrderEventService,
-    rpcManager: RpcManager
+    rpcManager: RpcManager,
+    noteService: NoteService
   ) {
     this.dbService = dbService
-    this.noteService = noteService
-    this.bookNodeService = bookNodeService
     this.rpcManager = rpcManager
     this.orderEventService = orderEventService
+    this.noteService = noteService
   }
 
   async triggerOrder(orderInfo: OrderDto) {
@@ -134,20 +129,12 @@ export class OrderRetailService {
       BigInt(orderDto.amountIn),
       darkSwapContext.signature
     )
-    this.noteService.addNote(swapMessage.orderNote, darkSwapContext, true)
+    // this.noteService.addNote(swapMessage.orderNote, darkSwapContext, true)
     // if (newBalance.amount > 0n) {
     //   this.noteService.addNote(newBalance, darkSwapContext, false)
     // }
 
-    const tx = await retailCreateOrderService.execute(context)
-    const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
-      tx,
-      getConfirmations(darkSwapContext.chainId)
-    )
-    if (receipt && receipt.status !== 1) {
-      throw new DarkSwapError('Order creation failed')
-    }
-    this.noteService.setNoteActive(swapMessage.orderNote, darkSwapContext, tx)
+    // this.noteService.setNoteActive(swapMessage.orderNote, darkSwapContext, tx)
 
     if (!orderDto.orderId) {
       orderDto.orderId = v4()
@@ -167,7 +154,6 @@ export class OrderRetailService {
     orderDto.noteCommitment = swapMessage.orderNote.note.toString()
     orderDto.nullifier = swapMessage.orderNullifier.toString()
     orderDto.feeRatio = swapMessage.orderNote.feeRatio.toString()
-    orderDto.txHashCreated = tx
     orderDto.publicKey = darkSwapContext.publicKey
 
     const orderRetailDto: OrderRetailDto = {
@@ -177,19 +163,25 @@ export class OrderRetailService {
 
     await this.dbService.addRetailOrderByDto(orderRetailDto)
 
+    const tx = await retailCreateOrderService.execute(context)
+    const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
+      tx,
+      getConfirmations(darkSwapContext.chainId)
+    )
+    if (receipt && receipt.status !== 1) {
+      throw new DarkSwapError('Order creation failed')
+    }
+
+    await this.dbService.updateTxCreatedRetailOrderByDto(
+      orderRetailDto.orderId!,
+      tx
+    )
+
     delete orderDto.noteCommitment
 
     delete orderRetailDto.orderId
     delete orderRetailDto.partialAmountIn
     delete orderRetailDto.publicKey
-
-    const authInfo = await getAuthInfo(darkSwapContext)
-    console.log(
-      'orderDto to create order in book node',
-      orderRetailDto,
-      authInfo
-    )
-    await this.bookNodeService.createRetailOrder(orderRetailDto, authInfo)
 
     await this.orderEventService.logOrderStatusChange(
       orderDto.orderId,
@@ -244,7 +236,7 @@ export class OrderRetailService {
       throw new DarkSwapError('Price not match with amountOut and amountIn')
     }
 
-    await this.bookNodeService.updateOrderPrice(updatePriceDto)
+    // await this.bookNodeService.updateOrderPrice(updatePriceDto)
     await this.dbService.updateOrderPrice(
       updatePriceDto.orderId,
       updatePriceDto.price,
@@ -260,7 +252,7 @@ export class OrderRetailService {
     darkSwapContext: DarkSwapContext,
     byNotification: boolean = false
   ) {
-    const order = await this.dbService.getOrderByOrderId(orderId)
+    const order = await this.dbService.getRetailOrderByOrderId(orderId)
     if (!order) {
       throw new DarkSwapError('Order not found')
     }
@@ -272,14 +264,7 @@ export class OrderRetailService {
       throw new DarkSwapError('Order is not cancellable')
     }
 
-    if (!order.noteCommitment) {
-      throw new DarkSwapError('Order note commitment not found')
-    }
-
-    const note = await this.dbService.getNoteByCommitment(order.noteCommitment)
-    if (!note) {
-      throw new DarkSwapError('Note not found')
-    }
+    const note = deserializeDarkSwapMessage(order.swapMessage!).orderNote
 
     const noteToProcess = {
       note: note.note,
@@ -308,7 +293,7 @@ export class OrderRetailService {
       throw new DarkSwapError('Order cancellation failed')
     }
 
-    this.noteService.setNoteUsed(noteToProcess as DarkSwapNote, darkSwapContext)
+    // this.noteService.setNoteUsed(noteToProcess as DarkSwapNote, darkSwapContext)
 
     const cancelOrderDto = {
       orderId: orderId,
@@ -317,10 +302,10 @@ export class OrderRetailService {
     } as CancelOrderDto
 
     await this.dbService.cancelOrder(cancelOrderDto.orderId)
-    if (!byNotification) {
-      const authInfo = await getAuthInfo(darkSwapContext)
-      await this.bookNodeService.cancelOrder(cancelOrderDto, authInfo)
-    }
+    // if (!byNotification) {
+    //   const authInfo = await getAuthInfo(darkSwapContext)
+    //   await this.bookNodeService.cancelOrder(cancelOrderDto, authInfo)
+    // }
 
     await this.orderEventService.logOrderStatusChange(
       orderId,
@@ -380,10 +365,6 @@ export class OrderRetailService {
   public async syncOrderStatuses(): Promise<void> {
     // Get all active orders (status = 0 or pending status)
     const activeOrders = await this.dbService.getRetailActiveOrders()
-
-    console.log(
-      `Syncing statuses for<<<<<<<<<<<<<-- ${activeOrders}  =>>>>>>>>>`
-    )
 
     for (const order of activeOrders) {
       try {

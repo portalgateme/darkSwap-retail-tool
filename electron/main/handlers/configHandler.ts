@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { config, db, dbPath } from '../database'
+import { reloadCore } from '../utils/coreReloader'
 import { DarkSwapClientCore, DarkSwapConfig } from '../../../core'
-import axios from 'axios'
 
 export function registerConfigHandlers() {
   ipcMain.handle('config:getConfigs', async (event) => {
@@ -14,6 +14,7 @@ export function registerConfigHandlers() {
       'INSERT OR REPLACE INTO configs (key, value) VALUES (?, ?)'
     )
     stmt.run(key, value)
+
     return { success: true }
   })
 
@@ -32,28 +33,39 @@ export function registerConfigHandlers() {
         }
       )
       insertMany(configs)
+
       event.sender.send('app:restart')
       return { success: true }
     }
   )
 
   // Heathcheck config handler
-  ipcMain.handle('config:healthCheck', async (event) => {
-    try {
-      if (!config) {
-        throw new Error('Failed to load configuration')
-      }
+  // ipcMain.handle('config:healthCheck', async (event, apiKey: string) => {
+  //   try {
+  //     if (!config) {
+  //       throw new Error('Failed to load configuration')
+  //     }
 
-      const listAsset = await axios.get(
-        `${config.bookNodeApiUrl}/api/tradingPairs/31337`
-      )
-      if (listAsset.status !== 200) {
-        throw new Error('API endpoint is not healthy')
-      }
+  //     console.log(
+  //       '=>>>>>>>>>>>>>>>>>>>>> Running health check with API key:',
+  //       apiKey
+  //     )
 
-      return { healthy: true }
-    } catch (error: any) {
-      return { healthy: false }
-    }
-  })
+  //     const darkSwapConfig: DarkSwapConfig = {
+  //       wallets: [],
+  //       chainRpcs: config.chainRpcs || [],
+  //       dbFilePath: dbPath,
+  //       bookNodeApiUrl: config.bookNodeApiUrl || 'https://api.darknode.io/api'
+  //     }
+  //     const instance = new DarkSwapClientCore(darkSwapConfig, db)
+  //     const healthy = await instance
+  //       .getWebSocketClient()
+  //       .startWebSocket()
+  //       .isAuthenticated()
+  //     console.log('Health check result:', healthy)
+  //     return { healthy }
+  //   } catch (error: any) {
+  //     return { healthy: false }
+  //   }
+  // })
 }

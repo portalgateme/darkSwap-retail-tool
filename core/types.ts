@@ -1,3 +1,5 @@
+import { DarkSwapNote } from '@thesingularitynetwork/darkswap-sdk'
+
 export enum ChainId {
   HARDHAT = 31337,
   HARDHAT_ARBITRUM = 31338,
@@ -61,6 +63,15 @@ export enum AutoOrderJobStatus {
   PAUSED = 1,
   COMPLETED = 2,
   CANCELLED = 3
+}
+
+export enum AutoOrderCycleState {
+  CREATE_SELL = 0,
+  WAIT_SELL = 1,
+  WITHDRAW_SELL = 2,
+  CREATE_BUY = 3,
+  WAIT_BUY = 4,
+  WITHDRAW_BUY = 5
 }
 
 export enum OrderType {
@@ -213,6 +224,9 @@ export interface AutoOrderJobDto extends BaseDto {
   status?: AutoOrderJobStatus
   activeOrderId?: string
   lastRunAt?: number
+  cycleState?: AutoOrderCycleState
+  startDirection?: OrderDirection
+  lastReceivedAmount?: string
   createdAt?: Date
   updatedAt?: Date
 }
@@ -270,6 +284,10 @@ export interface DepositDto extends BaseDto {
 export interface WithdrawDto extends BaseDto {
   asset: string
   amount: string
+}
+
+export interface WithdrawNoteDto extends BaseDto {
+  note: DarkSwapNote
 }
 
 export enum SortType {

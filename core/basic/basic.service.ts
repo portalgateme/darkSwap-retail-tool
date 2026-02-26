@@ -1,5 +1,6 @@
 import {
   DarkSwapError,
+  DarkSwapNote,
   DepositService,
   WithdrawService
 } from '@thesingularitynetwork/darkswap-sdk'
@@ -115,6 +116,47 @@ export class BasicService {
     }
     this.logger.info(
       `Withdraw of ${amount} ${asset} for wallet ${darkSwapContext.walletAddress} completed with tx ${withdrawContext.tx}`
+    )
+  }
+
+  // Withdraw specific note
+  async withdrawNote(darkSwapContext: DarkSwapContext, note: DarkSwapNote) {
+    const withdrawService = new WithdrawService(darkSwapContext.darkSwap)
+
+    if (note.amount < 0n) {
+      throw new DarkSwapError('Insufficient funds')
+    }
+
+    const { context: withdrawContext, newBalanceNote } =
+      await withdrawService.prepare(
+        darkSwapContext.walletAddress,
+        note,
+        note.amount,
+        darkSwapContext.signature
+      )
+
+    if (newBalanceNote.amount > 0n) {
+      this.noteService.addNote(newBalanceNote, darkSwapContext, false)
+    }
+
+    const tx = await withdrawService.execute(withdrawContext)
+
+    const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
+      tx,
+      getConfirmations(darkSwapContext.chainId)
+    )
+    if (receipt && receipt.status !== 1) {
+      throw new DarkSwapError('Withdraw failed')
+    }
+
+    // TODO: retail in not is not stored
+    // this.noteService.setNoteUsed(note, darkSwapContext)
+
+    if (newBalanceNote.amount > 0n) {
+      this.noteService.setNoteActive(newBalanceNote, darkSwapContext, tx)
+    }
+    this.logger.info(
+      `Withdraw of ${note.amount} ${note.asset} for wallet ${darkSwapContext.walletAddress} completed with tx ${withdrawContext.tx}`
     )
   }
 }

@@ -7,6 +7,7 @@ import { OrderManager } from '../orderManagement'
 import {
   AutoOrderJobDto,
   AutoOrderJobStatus,
+  AutoOrderCycleState,
   AutoOrderJobOrderDto,
   DepositDto,
   OrderDto,
@@ -15,9 +16,11 @@ import {
   OrderStatus,
   SortType,
   WithdrawDto,
-  OrderRetailDto
+  OrderRetailDto,
+  WithdrawNoteDto
 } from '../types'
 import { OrderRetailManager } from '../retailOrderManagement'
+import { deserializeDarkSwapMessage } from '@thesingularitynetwork/darkswap-sdk'
 
 const PRICE_DECIMALS = 18
 
@@ -101,6 +104,14 @@ export class AutoOrderManager {
     }
 
     job.status = job.status ?? AutoOrderJobStatus.ACTIVE
+    job.cycleState =
+      job.orderDirection === OrderDirection.BUY
+        ? AutoOrderCycleState.CREATE_BUY
+        : AutoOrderCycleState.CREATE_SELL
+    job.startDirection = job.orderDirection
+    job.lastReceivedAmount = '0'
+
+    console.log('Creating auto order job', job)
 
     await this.dbService.addAutoOrderJob(job)
 
@@ -270,165 +281,18 @@ export class AutoOrderManager {
             continue
           }
 
-          if (job.activeOrderId) {
-            const order = await this.dbService.getOrderByOrderId(
-              job.activeOrderId
-            )
-
-            if (!order) {
-              await this.dbService.updateAutoOrderJobActiveOrder(
-                job.jobId,
-                null,
-                now
-              )
-              continue
-            }
-
-            if (order.status === OrderStatus.SETTLED) {
-              const assetPair = await this.dbService.getAssetPairById(
-                order.assetPairId,
-                order.chainId
-              )
-
-              if (!assetPair) {
-                this.logger.warn(
-                  `Asset pair not found for settled order ${order.orderId}`
-                )
-                continue
-              }
-
-              const inAsset =
-                order.orderDirection === OrderDirection.BUY
-                  ? assetPair.baseAddress
-                  : assetPair.quoteAddress
-
-              // const withdrawDto: WithdrawDto = {
-              //   chainId: order.chainId,
-              //   wallet: order.wallet,
-              //   asset: inAsset,
-              //   amount: order.amountIn
-              // }
-
-              // await this.assetManager.withdraw(withdrawDto)
-
-              await this.dbService.updateAutoOrderJobActiveOrder(
-                job.jobId,
-                null,
-                now
-              )
-              continue
-            }
-
-            if (order.status === OrderStatus.CANCELLED) {
-              await this.dbService.updateAutoOrderJobActiveOrder(
-                job.jobId,
-                null,
-                now
-              )
-              continue
-            }
-
-            continue
+          // Initialize cycle state if not set
+          let cycleState = job.cycleState
+          if (!cycleState) {
+            // Determine starting cycle state based on startDirection
+            const startDirection = job.startDirection ?? OrderDirection.SELL
+            cycleState =
+              startDirection === OrderDirection.BUY
+                ? AutoOrderCycleState.CREATE_BUY
+                : AutoOrderCycleState.CREATE_SELL
           }
 
-          const assetPair = await this.dbService.getAssetPairById(
-            job.assetPairId,
-            job.chainId
-          )
-          if (!assetPair) {
-            this.logger.warn(
-              `Asset pair not found for job ${job.jobId}: ${job.assetPairId}`
-            )
-            continue
-          }
-
-          const marketPriceStr = job.marketPrice
-            ? this.normalizePrice(job.marketPrice, PRICE_DECIMALS)
-            : null
-          if (!marketPriceStr || Number(marketPriceStr) <= 0) {
-            continue
-          }
-
-          const price = Number(marketPriceStr)
-          const minPrice = Number(job.minPrice)
-          const maxPrice = Number(job.maxPrice)
-
-          if (price < minPrice || price > maxPrice) {
-            continue
-          }
-
-          const orderPrice =
-            job.orderType === OrderType.MARKET
-              ? marketPriceStr
-              : this.normalizePrice(job.price, PRICE_DECIMALS)
-
-          if (!orderPrice || Number(orderPrice) <= 0) {
-            this.logger.warn(`Invalid order price for job ${job.jobId}`)
-            continue
-          }
-
-          const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
-            job,
-            assetPair.baseDecimal,
-            assetPair.quoteDecimal,
-            orderPrice
-          )
-
-          if (amountInRaw <= 0n || amountOutRaw <= 0n) {
-            continue
-          }
-
-          const outAsset =
-            job.orderDirection === OrderDirection.BUY
-              ? assetPair.quoteAddress
-              : assetPair.baseAddress
-
-          // const depositDto: DepositDto = {
-          //   chainId: job.chainId,
-          //   wallet: job.wallet,
-          //   asset: outAsset,
-          //   amount: amountOutRaw.toString()
-          // }
-
-          // await this.assetManager.deposit(depositDto)
-
-          const orderDto: OrderRetailDto = {
-            orderId: v4(),
-            wallet: job.wallet,
-            chainId: job.chainId,
-            assetPairId: job.assetPairId,
-            orderDirection: job.orderDirection,
-            orderType: job.orderType,
-            timeInForce: job.timeInForce,
-            stpMode: job.stpMode,
-            price: orderPrice,
-            amountOut: amountOutRaw.toString(),
-            amountIn: amountInRaw.toString(),
-            partialAmountIn: amountInRaw.toString(), // fully filled when created
-            feeRatio: job.feeRatio
-          }
-
-          if (!orderDto.orderId) {
-            this.logger.error(`Failed to generate orderId for job ${job.jobId}`)
-            continue
-          }
-
-          await this.orderRetailManager.createOrder(orderDto)
-
-          const log: AutoOrderJobOrderDto = {
-            jobId: job.jobId,
-            orderId: orderDto.orderId,
-            chainId: job.chainId,
-            wallet: job.wallet
-          }
-
-          await this.dbService.addAutoOrderJobOrder(log)
-
-          await this.dbService.updateAutoOrderJobActiveOrder(
-            job.jobId,
-            orderDto.orderId,
-            now
-          )
+          await this.processCycleState(job, cycleState, now)
         } catch (error) {
           this.logger.error(`Auto order job failed: ${job.jobId}`, error)
           await this.pauseJob(job.jobId)
@@ -439,6 +303,456 @@ export class AutoOrderManager {
     } finally {
       this.isTicking = false
     }
+  }
+
+  private async processCycleState(
+    job: AutoOrderJobDto,
+    cycleState: AutoOrderCycleState,
+    now: number
+  ) {
+    const assetPair = await this.dbService.getAssetPairById(
+      job.assetPairId,
+      job.chainId
+    )
+    if (!assetPair) {
+      this.logger.warn(
+        `Asset pair not found for job ${job.jobId}: ${job.assetPairId}`
+      )
+      return
+    }
+
+    switch (cycleState) {
+      case AutoOrderCycleState.CREATE_SELL:
+        await this.handleCreateSell(job, assetPair, now)
+        break
+      case AutoOrderCycleState.WAIT_SELL:
+        await this.handleWaitSell(job, now)
+        break
+      case AutoOrderCycleState.WITHDRAW_SELL:
+        await this.handleWithdrawSell(job, now)
+        break
+      case AutoOrderCycleState.CREATE_BUY:
+        await this.handleCreateBuy(job, assetPair, now)
+        break
+      case AutoOrderCycleState.WAIT_BUY:
+        await this.handleWaitBuy(job, now)
+        break
+      case AutoOrderCycleState.WITHDRAW_BUY:
+        await this.handleWithdrawBuy(job, now)
+        break
+    }
+  }
+
+  private async handleCreateSell(
+    job: AutoOrderJobDto,
+    assetPair: any,
+    now: number
+  ) {
+    if (job.orderDirection !== OrderDirection.SELL) {
+      // Skip if not selling in this cycle
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_BUY,
+        now
+      )
+      return
+    }
+
+    if (job.activeOrderId) {
+      // Already has active order, just wait
+      await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_SELL, now)
+      return
+    }
+
+    // Create sell order
+    const orderPrice = await this.getOrderPrice(job)
+    if (!orderPrice) return
+
+    // Use lastReceivedAmount as amountOut for sell order if available
+    const sellAmountOut = job.lastReceivedAmount || job.amountOut
+    const sellJob = { ...job, amountOut: sellAmountOut }
+
+    const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
+      sellJob,
+      assetPair.baseDecimal,
+      assetPair.quoteDecimal,
+      orderPrice
+    )
+
+    if (amountInRaw <= 0n || amountOutRaw <= 0n) {
+      return
+    }
+
+    const orderId = v4()
+    const orderDto: OrderRetailDto = {
+      orderId: orderId,
+      wallet: job.wallet,
+      chainId: job.chainId,
+      assetPairId: job.assetPairId,
+      orderDirection: OrderDirection.SELL,
+      orderType: job.orderType,
+      timeInForce: job.timeInForce,
+      stpMode: job.stpMode,
+      price: orderPrice,
+      amountOut: amountOutRaw.toString(),
+      amountIn: amountInRaw.toString(),
+      partialAmountIn: amountInRaw.toString(),
+      feeRatio: job.feeRatio
+    }
+
+    await this.orderRetailManager.createOrder(orderDto)
+
+    const log: AutoOrderJobOrderDto = {
+      jobId: job.jobId,
+      orderId: orderId,
+      chainId: job.chainId,
+      wallet: job.wallet
+    }
+
+    await this.dbService.addAutoOrderJobOrder(log)
+    await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, orderId, now)
+    await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_SELL, now)
+
+    this.logger.info(
+      `[Auto Order Cycle] Job ${job.jobId} created SELL order ${orderDto.orderId} with amount ${sellAmountOut}`
+    )
+  }
+
+  private async handleWaitSell(job: AutoOrderJobDto, now: number) {
+    if (!job.activeOrderId) {
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_SELL,
+        now
+      )
+      return
+    }
+
+    const order = await this.dbService.getRetailOrderByOrderId(
+      job.activeOrderId
+    )
+
+    if (!order) {
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_SELL,
+        now
+      )
+      return
+    }
+
+    if (order.status === OrderStatus.SETTLED) {
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.WITHDRAW_SELL,
+        now
+      )
+      this.logger.info(
+        `[Auto Order Cycle] Job ${job.jobId} SELL order ${order.orderId} settled`
+      )
+      return
+    }
+
+    if (order.status === OrderStatus.CANCELLED) {
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_SELL,
+        now
+      )
+      this.logger.warn(
+        `[Auto Order Cycle] Job ${job.jobId} SELL order ${order.orderId} cancelled`
+      )
+      return
+    }
+
+    // Still waiting for order to settle
+  }
+
+  private async handleWithdrawSell(job: AutoOrderJobDto, now: number) {
+    if (!job.activeOrderId) {
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_BUY,
+        now
+      )
+      return
+    }
+
+    const order = await this.dbService.getRetailOrderByOrderId(
+      job.activeOrderId
+    )
+
+    if (!order) {
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_BUY,
+        now
+      )
+      return
+    }
+
+    if (order.status === OrderStatus.SETTLED) {
+      const swapMessage = deserializeDarkSwapMessage(order.swapMessage!)
+      const withdrawNoteDto: WithdrawNoteDto = {
+        chainId: order.chainId,
+        wallet: order.wallet,
+        note: swapMessage.inNote
+      }
+
+      await this.assetManager.withdrawNote(withdrawNoteDto)
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+
+      // Save received amount for next order
+      job.lastReceivedAmount = order.amountIn
+      await this.updateCycleStateWithAmount(
+        job.jobId,
+        AutoOrderCycleState.CREATE_BUY,
+        order.amountIn,
+        now
+      )
+
+      this.logger.info(
+        `[Auto Order Cycle] Job ${job.jobId} withdrawn SELL proceeds from ${order.orderId}, received ${order.amountIn}`
+      )
+    }
+  }
+
+  private async handleCreateBuy(
+    job: AutoOrderJobDto,
+    assetPair: any,
+    now: number
+  ) {
+    if (job.orderDirection === OrderDirection.SELL) {
+      // Need to flip direction for buy order
+      const tempJob = { ...job, orderDirection: OrderDirection.BUY }
+
+      if (job.activeOrderId) {
+        await this.updateCycleState(
+          job.jobId,
+          AutoOrderCycleState.WAIT_BUY,
+          now
+        )
+        return
+      }
+
+      const orderPrice = await this.getOrderPrice(tempJob)
+      if (!orderPrice) return
+
+      // Use lastReceivedAmount as amountOut for buy order if available
+      const buyAmountOut = job.lastReceivedAmount || job.amountOut
+      const buyTempJob = { ...tempJob, amountOut: buyAmountOut }
+
+      const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
+        buyTempJob,
+        assetPair.baseDecimal,
+        assetPair.quoteDecimal,
+        orderPrice
+      )
+
+      if (amountInRaw <= 0n || amountOutRaw <= 0n) {
+        return
+      }
+
+      const orderId = v4()
+      const orderDto: OrderRetailDto = {
+        orderId: orderId,
+        wallet: job.wallet,
+        chainId: job.chainId,
+        assetPairId: job.assetPairId,
+        orderDirection: OrderDirection.BUY,
+        orderType: job.orderType,
+        timeInForce: job.timeInForce,
+        stpMode: job.stpMode,
+        price: orderPrice,
+        amountOut: amountOutRaw.toString(),
+        amountIn: amountInRaw.toString(),
+        partialAmountIn: amountInRaw.toString(),
+        feeRatio: job.feeRatio
+      }
+
+      await this.orderRetailManager.createOrder(orderDto)
+
+      const log: AutoOrderJobOrderDto = {
+        jobId: job.jobId,
+        orderId: orderId,
+        chainId: job.chainId,
+        wallet: job.wallet
+      }
+
+      await this.dbService.addAutoOrderJobOrder(log)
+      await this.dbService.updateAutoOrderJobActiveOrder(
+        job.jobId,
+        orderId,
+        now
+      )
+      await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_BUY, now)
+
+      this.logger.info(
+        `[Auto Order Cycle] Job ${job.jobId} created BUY order ${orderDto.orderId} with amount ${buyAmountOut}`
+      )
+    }
+  }
+
+  private async handleWaitBuy(job: AutoOrderJobDto, now: number) {
+    if (!job.activeOrderId) {
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_BUY,
+        now
+      )
+      return
+    }
+
+    const order = await this.dbService.getRetailOrderByOrderId(
+      job.activeOrderId
+    )
+
+    if (!order) {
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_BUY,
+        now
+      )
+      return
+    }
+
+    if (order.status === OrderStatus.SETTLED) {
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.WITHDRAW_BUY,
+        now
+      )
+      this.logger.info(
+        `[Auto Order Cycle] Job ${job.jobId} BUY order ${order.orderId} settled`
+      )
+      return
+    }
+
+    if (order.status === OrderStatus.CANCELLED) {
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_BUY,
+        now
+      )
+      this.logger.warn(
+        `[Auto Order Cycle] Job ${job.jobId} BUY order ${order.orderId} cancelled`
+      )
+      return
+    }
+
+    // Still waiting for order to settle
+  }
+
+  private async handleWithdrawBuy(job: AutoOrderJobDto, now: number) {
+    if (!job.activeOrderId) {
+      // Cycle complete, start over
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_SELL,
+        now
+      )
+      return
+    }
+
+    const order = await this.dbService.getRetailOrderByOrderId(
+      job.activeOrderId
+    )
+
+    if (!order) {
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+      await this.updateCycleState(
+        job.jobId,
+        AutoOrderCycleState.CREATE_SELL,
+        now
+      )
+      return
+    }
+
+    if (order.status === OrderStatus.SETTLED) {
+      const swapMessage = deserializeDarkSwapMessage(order.swapMessage!)
+      const withdrawNoteDto: WithdrawNoteDto = {
+        chainId: order.chainId,
+        wallet: order.wallet,
+        note: swapMessage.inNote
+      }
+
+      await this.assetManager.withdrawNote(withdrawNoteDto)
+      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
+
+      // Save received amount for next order (back to sell)
+      job.lastReceivedAmount = order.amountIn
+      await this.updateCycleStateWithAmount(
+        job.jobId,
+        AutoOrderCycleState.CREATE_SELL,
+        order.amountIn,
+        now
+      )
+
+      this.logger.info(
+        `[Auto Order Cycle] Job ${job.jobId} withdrawn BUY proceeds from ${order.orderId}, received ${order.amountIn}`
+      )
+    }
+  }
+
+  private async updateCycleState(
+    jobId: string,
+    newState: AutoOrderCycleState,
+    now: number
+  ) {
+    const job = await this.dbService.getAutoOrderJobByJobId(jobId)
+    if (job) {
+      job.cycleState = newState
+      await this.dbService.updateAutoOrderJob(job)
+    }
+  }
+
+  private async updateCycleStateWithAmount(
+    jobId: string,
+    newState: AutoOrderCycleState,
+    receivedAmount: string,
+    now: number
+  ) {
+    const job = await this.dbService.getAutoOrderJobByJobId(jobId)
+    if (job) {
+      job.cycleState = newState
+      job.lastReceivedAmount = receivedAmount
+      await this.dbService.updateAutoOrderJob(job)
+    }
+  }
+
+  private async getOrderPrice(job: AutoOrderJobDto): Promise<string | null> {
+    const marketPriceStr = job.marketPrice
+      ? this.normalizePrice(job.marketPrice, PRICE_DECIMALS)
+      : null
+
+    if (!marketPriceStr || Number(marketPriceStr) <= 0) {
+      return null
+    }
+
+    const price = Number(marketPriceStr)
+    const minPrice = Number(job.minPrice)
+    const maxPrice = Number(job.maxPrice)
+
+    if (price < minPrice || price > maxPrice) {
+      return null
+    }
+
+    const orderPrice =
+      job.orderType === OrderType.MARKET
+        ? marketPriceStr
+        : this.normalizePrice(job.price, PRICE_DECIMALS)
+
+    if (!orderPrice || Number(orderPrice) <= 0) {
+      this.logger.warn(`Invalid order price for job ${job.jobId}`)
+      return null
+    }
+
+    return orderPrice
   }
 
   private computeOrderAmounts(

@@ -190,7 +190,7 @@ export const OrderContent = () => {
     OrderStatus.BOB_CONFIRMED
   )
 
-  const onCancelOrder = async (order: OrderDto) => {
+  const onCancelOrder = async (order: OrderEvents) => {
     const toastId = showLoading('Cancelling order...')
     try {
       startLoad(order.orderId)

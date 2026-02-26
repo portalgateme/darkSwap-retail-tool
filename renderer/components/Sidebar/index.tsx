@@ -36,12 +36,12 @@ const menus = [
     title: 'Order History',
     icon: <HistoryIcon sx={{ color: '#FFFFFF', fontSize: 16 }} />,
     link: '/history'
-  },
-  {
-    title: 'Settings',
-    icon: <SettingsIcon sx={{ color: '#FFFFFF', fontSize: 16 }} />,
-    link: '/settings'
   }
+  // {
+  //   title: 'Settings',
+  //   icon: <SettingsIcon sx={{ color: '#FFFFFF', fontSize: 16 }} />,
+  //   link: '/settings'
+  // }
 ]
 
 export const Sidebar = () => {

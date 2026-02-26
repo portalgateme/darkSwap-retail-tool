@@ -67,10 +67,9 @@ export class DarkSwapClientCore {
     )
     const orderRetailService = new OrderRetailService(
       dbService,
-      noteService,
-      bookNodeService,
       orderEventService,
-      this.rpcManager
+      this.rpcManager,
+      noteService
     )
     this.orderRetailManager = new OrderRetailManager(
       orderRetailService,

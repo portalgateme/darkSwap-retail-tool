@@ -70,6 +70,10 @@ export const CreateAutoOrderModal = ({
         <Button
           variant='outlined'
           onClick={handleClose}
+          sx={{
+            borderColor: '#68EB8E',
+            color: '#68EB8E'
+          }}
         >
           Close
         </Button>

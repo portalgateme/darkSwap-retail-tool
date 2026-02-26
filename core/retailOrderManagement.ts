@@ -121,6 +121,7 @@ export class OrderRetailManager {
       cancelOrderDto.wallet,
       this.rpcManager
     )
+
     const mutex = this.walletMutexService.getMutex(
       context.chainId,
       context.walletAddress.toLowerCase()
