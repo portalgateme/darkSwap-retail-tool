@@ -10,7 +10,7 @@ import { registerAppHandlers } from './handlers/appHandler'
 import { registerAutoOrderHandlers } from './handlers/autoOrderHandler'
 
 const appServe = app.isPackaged
-  ? serve({ directory: path.join(__dirname, '../renderer/out') })
+  ? serve({ directory: path.join(__dirname, '../../renderer/out') })
   : null
 
 let mainWindow: BrowserWindow | null = null
@@ -30,10 +30,14 @@ async function createWindow() {
     mainWindow.webContents.openDevTools()
   } else {
     if (!mainWindow || !appServe) return
-    appServe(mainWindow).then(() => {
-      if (!mainWindow) return
-      mainWindow.loadURL('app://-')
-    })
+    appServe(mainWindow)
+      .then(() => {
+        if (!mainWindow) return
+        mainWindow.loadURL('app://-')
+      })
+      .catch((err) => {
+        console.error('Failed to serve app:', err)
+      })
   }
 
   mainWindow.on('closed', () => {
