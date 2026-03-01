@@ -400,6 +400,12 @@ export class OrderRetailService {
             order.orderId,
             OrderStatus.SETTLED
           )
+          await this.orderEventService.logOrderStatusChange(
+            order.orderId,
+            context.walletAddress,
+            context.chainId,
+            OrderStatus.SETTLED
+          )
           console.log(
             `Updated order ${order.orderId} status: ${order.status} -> ${OrderStatus.SETTLED}`
           )
