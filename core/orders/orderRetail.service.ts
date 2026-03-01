@@ -28,7 +28,7 @@ import { Logger } from 'tslog'
 import { RpcManager } from '../common/rpcManager'
 import { checkPrice } from '../utils/priceUtil'
 import { getBalance } from '../utils/getBalance'
-import { getAuthInfo } from '../auth/authInfo.service'
+import { AgentService } from '../common/agent.service'
 
 export class OrderRetailService {
   private readonly logger = new Logger({ name: OrderRetailService.name })
@@ -37,17 +37,20 @@ export class OrderRetailService {
   private orderEventService: OrderEventService
   private noteService: NoteService
   private rpcManager: RpcManager
+  private agentService: AgentService
 
   public constructor(
     dbService: DatabaseService,
     orderEventService: OrderEventService,
     rpcManager: RpcManager,
-    noteService: NoteService
+    noteService: NoteService,
+    agentService: AgentService
   ) {
     this.dbService = dbService
     this.rpcManager = rpcManager
     this.orderEventService = orderEventService
     this.noteService = noteService
+    this.agentService = agentService
   }
 
   async triggerOrder(orderInfo: OrderDto) {
@@ -129,12 +132,6 @@ export class OrderRetailService {
       BigInt(orderDto.amountIn),
       darkSwapContext.signature
     )
-    // this.noteService.addNote(swapMessage.orderNote, darkSwapContext, true)
-    // if (newBalance.amount > 0n) {
-    //   this.noteService.addNote(newBalance, darkSwapContext, false)
-    // }
-
-    // this.noteService.setNoteActive(swapMessage.orderNote, darkSwapContext, tx)
 
     if (!orderDto.orderId) {
       orderDto.orderId = v4()
@@ -177,6 +174,9 @@ export class OrderRetailService {
       tx
     )
 
+    orderRetailDto.txHashCreated = tx
+    const orderId = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
+
     delete orderDto.noteCommitment
 
     delete orderRetailDto.orderId
@@ -191,10 +191,8 @@ export class OrderRetailService {
     )
 
     this.logger.info(
-      `Order created: ${
-        orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
-      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${
-        orderDto.amountOut
+      `Order created: ${orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
+      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${orderDto.amountOut
       } IN: ${orderDto.amountIn}`
     )
   }
@@ -365,54 +363,41 @@ export class OrderRetailService {
   public async syncOrderStatuses(): Promise<void> {
     // Get all active orders (status = 0 or pending status)
     const activeOrders = await this.dbService.getRetailActiveOrders()
+    console.log(`Found ${activeOrders.length} active orders to sync`)
 
     for (const order of activeOrders) {
       try {
+        if (!order.orderId) {
+          console.warn(
+            `Order ${order.orderId} has no order id, skipping status sync`
+          )
+          continue
+        }
+
         const context = await DarkSwapContext.createDarkSwapContext(
           order.chainId,
           order.wallet,
           this.rpcManager
         )
 
-        if (!order.swapMessage) {
-          console.warn(
-            `Order ${order.orderId} has no swap message, skipping status sync`
-          )
-          continue
-        }
-
-        const swapMessage = deserializeDarkSwapMessage(order.swapMessage)
-        const orderNote = swapMessage.orderNote
-        const inNote = swapMessage.inNote
-
-        // Check order status on-chain
-        const orderNoteStatus = await this.noteService.checkNoteByChain(
-          orderNote,
-          context.signature,
-          order.chainId
+        const orderFilled = await this.agentService.getOrderFilledByOrderId(
+          order.chainId,
+          order.orderId,
+          order.wallet,
+          context.signer
         )
-
-        const inNoteStatus = await this.noteService.checkNoteByChain(
-          inNote,
-          context.signature,
-          order.chainId
+        console.log(
+          `Order ${order.orderId} filled: ${orderFilled}`
         )
-
-        const orderStatus =
-          orderNoteStatus === OrderNoteStatus.VERFIED
-            ? OrderStatus.OPEN
-            : inNoteStatus === OrderNoteStatus.VERFIED
-              ? OrderStatus.SETTLED
-              : OrderStatus.MATCHED
 
         // Update if status changed
-        if (order.status && orderStatus !== order.status && order.orderId) {
+        if (orderFilled) {
           await this.dbService.updateRetailOrderStatus(
             order.orderId,
-            orderStatus
+            OrderStatus.SETTLED
           )
           console.log(
-            `Updated order ${order.orderId} status: ${order.status} -> ${orderStatus}`
+            `Updated order ${order.orderId} status: ${order.status} -> ${OrderStatus.SETTLED}`
           )
         }
       } catch (error) {

@@ -4,7 +4,6 @@ import {
 import { Logger } from 'tslog'
 import { DatabaseService } from '../common/db/database.service'
 import { NoteService } from '../common/note.service'
-import { NotesJoinService } from '../common/notesJoin.service'
 import { RpcManager } from '../common/rpcManager'
 import {
   AssetPairDto,
@@ -18,37 +17,19 @@ export class OrderService {
 
   private dbService: DatabaseService
   private noteService: NoteService
-  private notesJoinService: NotesJoinService
   private orderEventService: OrderEventService
   private rpcManager: RpcManager
 
   public constructor(
     dbService: DatabaseService,
     noteService: NoteService,
-    notesJoinService: NotesJoinService,
     orderEventService: OrderEventService,
     rpcManager: RpcManager
   ) {
     this.dbService = dbService
     this.noteService = noteService
-    this.notesJoinService = notesJoinService
     this.rpcManager = rpcManager
     this.orderEventService = orderEventService
-  }
-
-  async triggerOrder(orderInfo: OrderDto) {
-    if (!orderInfo) {
-      throw new DarkSwapError('Order not found')
-    }
-
-    this.dbService.updateOrderTriggered(orderInfo.orderId)
-
-    await this.orderEventService.logOrderStatusChange(
-      orderInfo.orderId,
-      orderInfo.wallet,
-      orderInfo.chainId,
-      OrderStatus.TRIGGERED
-    )
   }
 
   async getOrdersByStatusAndPage(

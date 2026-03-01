@@ -5,7 +5,6 @@ import { OrderManager } from './orderManagement'
 import { DarkSwapConfig } from './types'
 
 import { NoteService } from './common/note.service'
-import { NotesJoinService } from './common/notesJoin.service'
 import { OrderEventService } from './orders/orderEvent.service'
 import { SubgraphService } from './common/subgraph.service'
 import { AssetPairService } from './common/assetPair.service'
@@ -35,7 +34,6 @@ export class DarkSwapClientCore {
     this.rpcManager = new RpcManager(config)
     const dbService = new DatabaseService(db)
     const noteService = new NoteService(dbService, this.rpcManager)
-    const noteJoinService = new NotesJoinService(dbService, noteService)
     const orderEventService = new OrderEventService(dbService)
     const subgraphService = SubgraphService.getInstance()
     const agentService = new AgentService(config)
@@ -45,21 +43,20 @@ export class DarkSwapClientCore {
     const orderService = new OrderService(
       dbService,
       noteService,
-      noteJoinService,
       orderEventService,
       this.rpcManager
     )
     const accountService = new AccountService(config, dbService)
     const basicService = new BasicService(
       dbService,
-      noteService,
-      noteJoinService
+      noteService
     )
     const orderRetailService = new OrderRetailService(
       dbService,
       orderEventService,
       this.rpcManager,
-      noteService
+      noteService,
+      agentService
     )
     this.orderRetailManager = new OrderRetailManager(
       orderRetailService,

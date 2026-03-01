@@ -16,12 +16,12 @@ export class AgentService {
         return response.data.data as AssetPairDto[];
     }
 
-    public async signMessage(message: string, wallet: ethers.Wallet): Promise<string> {
-        const signature = await wallet.signMessage(message);
+    public async signMessage(message: string, signer: ethers.Signer): Promise<string> {
+        const signature = await signer.signMessage(message);
         return signature;
     }
 
-    public async submitOrder(chainId: number, retailOrder: OrderRetailDto, wallet: ethers.Wallet) {
+    public async submitOrder(chainId: number, retailOrder: OrderRetailDto, signer: ethers.Signer): Promise<string> {
         if (!retailOrder.swapMessage) {
             throw new Error('Swap message is required');
         }
@@ -29,14 +29,34 @@ export class AgentService {
         const swapMessage = deserializeDarkSwapMessage(retailOrder.swapMessage);
 
         const timestamp = new Date().toISOString()
-        const message = `${wallet.address.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
-        const signature = await this.signMessage(message, wallet);
+        const message = `${retailOrder.wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
+        const signature = await this.signMessage(message, signer);
+
+        console.log({
+                wallet: retailOrder.wallet,
+                chainId: chainId,
+                assetPairId: retailOrder.assetPairId,
+                orderDirection: retailOrder.orderDirection === OrderDirection.BUY ? 0 : 1,
+                orderType: OrderType.LIMIT,
+                timeInForce: 0,
+                stpMode: 0,
+                price: retailOrder.price,
+                amountOut: swapMessage.orderNote.amount.toString(),
+                amountIn: (swapMessage.inNote.amount + swapMessage.feeAmount).toString(),
+                swapMessage: retailOrder.swapMessage,
+                txHashCreated: retailOrder.txHashCreated,
+                nullifier: swapMessage.orderNullifier,
+            },{
+                'x-wallet-address': retailOrder.wallet.toLowerCase(),
+                'x-wallet-signature': signature,
+                'x-wallet-timestamp': timestamp,
+            })
 
         const response = await axios({
             method: 'post',
             url: `${agentUrl}/orders/create`,
             data: {
-                wallet: wallet.address,
+                wallet: retailOrder.wallet,
                 chainId: chainId,
                 assetPairId: retailOrder.assetPairId,
                 orderDirection: retailOrder.orderDirection === OrderDirection.BUY ? 0 : 1,
@@ -51,7 +71,7 @@ export class AgentService {
                 nullifier: swapMessage.orderNullifier,
             },
             headers: {
-                'x-wallet-address': wallet.address,
+                'x-wallet-address': retailOrder.wallet.toLowerCase(),
                 'x-wallet-signature': signature,
                 'x-wallet-timestamp': timestamp,
             },
@@ -60,6 +80,8 @@ export class AgentService {
             console.log('Submit order failed', response.data);
             throw new Error('Submit order failed');
         }
+
+        return response.data.data.orderId;
     }
 
     public async submitOrderFromSwap(
@@ -112,19 +134,20 @@ export class AgentService {
     public async getOrderFilledByOrderId(
         chainId: number,
         orderId: string,
-        signer: ethers.Wallet
+        wallet: string,
+        signer: ethers.Signer
     ): Promise<boolean> {
         const agentUrl = this.config.agentUrl;
         // Sign a message to get the order detail
         const timestamp = new Date().toISOString()
-        const message = `${signer.address.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
+        const message = `${wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
         const signature = await signer.signMessage(message);
         const response = await axios.get(`${agentUrl}/orders/detail`, {
             params: {
                 orderId
             },
             headers: {
-                'x-wallet-address': signer.address.toLowerCase(),
+                'x-wallet-address': wallet.toLowerCase(),
                 'x-wallet-signature': signature,
                 'x-wallet-timestamp': timestamp
             }
