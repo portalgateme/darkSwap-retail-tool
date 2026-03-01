@@ -3,5 +3,4 @@ chainRpcs:
     rpcUrl: 'https://base-rpc.publicnode.com'
 
 dbFilePath: 'app.db'
-bookNodeSocketUrl: 'wss://ws.bn.darkswap.me'
-bookNodeApiUrl: 'https://bn.darkswap.me'
+agentUrl: 'https://agent.darkswap.me/api'
