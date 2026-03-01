@@ -1,4 +1,3 @@
-import { FireblocksWeb3Provider } from '@fireblocks/fireblocks-web3-provider'
 import { DarkSwapError } from '@thesingularitynetwork/darkswap-sdk'
 import { ethers } from 'ethers'
 import { DarkSwapConfig, WalletConfig } from '../types'
@@ -30,17 +29,6 @@ export class RpcManager {
     return provider
   }
 
-  public getSignerForUserSwapRelayer(chainId: number): ethers.Signer | null {
-    const userSwapRelayerPrivateKey = this.config.userSwapRelayerPrivateKey
-
-    if (!userSwapRelayerPrivateKey) {
-      return null
-    }
-
-    const provider = this.getProvider(chainId)
-    return new ethers.Wallet(userSwapRelayerPrivateKey, provider)
-  }
-
   public getSignerAndPublicKey(
     walletAddress: string,
     chainId: number
@@ -62,8 +50,6 @@ export class RpcManager {
     let signer: ethers.Signer
     if (wallet.type === 'privateKey') {
       signer = this.getSignerForPrivateKey(wallet, provider)
-    } else if (wallet.type === 'fireblocks') {
-      signer = this.getSignerForFireblocks(wallet, chainId)
     } else {
       throw new DarkSwapError('Invalid wallet type')
     }
@@ -80,30 +66,6 @@ export class RpcManager {
       return new ethers.Wallet(wallet.privateKey, provider)
     }
     throw new DarkSwapError('Invalid wallet type')
-  }
-
-  private getSignerForFireblocks(
-    wallet: WalletConfig,
-    chainId: number
-  ): ethers.Signer {
-    if (wallet.type !== 'fireblocks') {
-      throw new DarkSwapError('Invalid wallet type')
-    }
-
-    const fireblocksConfig = this.config.fireblocks
-    if (!fireblocksConfig) {
-      throw new DarkSwapError('Fireblocks config not found')
-    }
-    const eip1193Provider = new FireblocksWeb3Provider({
-      privateKey: fireblocksConfig.privateKey,
-      apiKey: fireblocksConfig.apiKey,
-      vaultAccountIds: wallet.address,
-      chainId
-    })
-    if (fireblocksConfig.apiBaseUrl) {
-      eip1193Provider.setApiBaseUrl(fireblocksConfig.apiBaseUrl)
-    }
-    return eip1193Provider.getSigner()
   }
 
   public reloadProviders() {

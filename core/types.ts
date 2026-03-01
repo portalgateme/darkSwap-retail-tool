@@ -127,11 +127,8 @@ export interface DarkSwapConfig {
   wallets: WalletConfig[]
   chainRpcs: ChainRpcConfig[]
   dbFilePath: string
-  bookNodeApiUrl: string
-  userSwapRelayerAddress?: string
-  userSwapRelayerPrivateKey?: string
+  agentUrl: string
   proofOptions?: ProofOptionsConfig
-  fireblocks?: FireblocksConfig
 }
 
 export interface BaseDto {

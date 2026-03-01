@@ -55,7 +55,7 @@ function createCoreInstance(
     wallets: wallets || [],
     chainRpcs: latestConfig.chainRpcs || [],
     dbFilePath: dbPath,
-    bookNodeApiUrl: latestConfig.bookNodeApiUrl || 'https://api.darknode.io/api'
+    agentUrl: latestConfig.agentUrl || 'https://api.darknode.io/api'
   }
 
   const instance = new DarkSwapClientCore(darkSwapConfig, db)
@@ -114,8 +114,7 @@ export async function reloadCore(db: Database, dbPath: string): Promise<void> {
       wallets: [...(latestConfig.wallets || []), ...dbWallets],
       chainRpcs: latestConfig.chainRpcs || [],
       dbFilePath: dbPath,
-      bookNodeApiUrl:
-        latestConfig.bookNodeApiUrl || 'https://api.darknode.io/api'
+      agentUrl: latestConfig.agentUrl || 'https://api.darknode.io/api'
     }
 
     // Create new instance with updated config

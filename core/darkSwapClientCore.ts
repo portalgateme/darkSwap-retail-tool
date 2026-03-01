@@ -6,8 +6,6 @@ import { DarkSwapConfig } from './types'
 
 import { NoteService } from './common/note.service'
 import { NotesJoinService } from './common/notesJoin.service'
-import { SettlementService } from './settlement/settlement.service'
-import { BooknodeService } from './common/booknode.service'
 import { OrderEventService } from './orders/orderEvent.service'
 import { SubgraphService } from './common/subgraph.service'
 import { AssetPairService } from './common/assetPair.service'
@@ -19,6 +17,7 @@ import { RpcManager } from './common/rpcManager'
 import { AutoOrderManager } from './autoOrder/autoOrder.manager'
 import { OrderRetailManager } from './retailOrderManagement'
 import { OrderRetailService } from './orders/orderRetail.service'
+import { AgentService } from './common/agent.service'
 
 export class DarkSwapClientCore {
   private assetManager!: AssetManager
@@ -37,25 +36,16 @@ export class DarkSwapClientCore {
     const dbService = new DatabaseService(db)
     const noteService = new NoteService(dbService, this.rpcManager)
     const noteJoinService = new NotesJoinService(dbService, noteService)
-    const bookNodeService = new BooknodeService(config)
     const orderEventService = new OrderEventService(dbService)
     const subgraphService = SubgraphService.getInstance()
-    const settlementService = new SettlementService(
-      dbService,
-      bookNodeService,
-      noteService,
-      noteJoinService,
-      orderEventService,
-      subgraphService,
-      this.rpcManager
-    )
-    this.assetPairService = new AssetPairService(config, dbService)
+    const agentService = new AgentService(config)
+    
+    this.assetPairService = new AssetPairService(dbService, agentService)
     const walletMutexService = WalletMutexService.getInstance()
     const orderService = new OrderService(
       dbService,
       noteService,
       noteJoinService,
-      bookNodeService,
       orderEventService,
       this.rpcManager
     )
