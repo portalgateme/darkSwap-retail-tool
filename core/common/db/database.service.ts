@@ -544,7 +544,7 @@ export class DatabaseService {
       nullifier, txHashCreated, swapMessage)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     const stmt = this.db.prepare(query)
-    stmt.run(
+    const result = stmt.run(
       order.orderId,
       order.chainId,
       order.assetPairId,
@@ -565,15 +565,34 @@ export class DatabaseService {
       order.txHashCreated,
       order.swapMessage
     )
+    return Number(result.lastInsertRowid)
+  }
+
+  public async updateTxCreatedRetailOrderById(
+    id: number,
+    txHashCreated: string
+  ) {
+    const query = `UPDATE ORDERS SET txHashCreated = ? WHERE id = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(txHashCreated, id)
+  }
+
+  public async updateOrderIdOfRetailOrderById(
+    id: number,
+    orderId: string
+  ) {
+    const query = `UPDATE ORDERS SET orderId = ? WHERE id = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(orderId, id)
   }
 
   public async updateTxCreatedRetailOrderByDto(
-    orderId: string,
+    id: number,
     txHashCreated: string
   ) {
-    const query = `UPDATE ORDERS SET txHashCreated = ? WHERE orderId = ?`
+    const query = `UPDATE ORDERS SET txHashCreated = ? WHERE id = ?`
     const stmt = this.db.prepare(query)
-    stmt.run(txHashCreated, orderId)
+    stmt.run(txHashCreated, id)
   }
 
   public async getOrdersByStatusAndPage(

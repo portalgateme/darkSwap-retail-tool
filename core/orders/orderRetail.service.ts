@@ -158,7 +158,7 @@ export class OrderRetailService {
       swapMessage: serializeDarkSwapMessage(swapMessage)
     }
 
-    await this.dbService.addRetailOrderByDto(orderRetailDto)
+    const orderPkId = await this.dbService.addRetailOrderByDto(orderRetailDto)
 
     const tx = await retailCreateOrderService.execute(context)
     const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
@@ -169,13 +169,17 @@ export class OrderRetailService {
       throw new DarkSwapError('Order creation failed')
     }
 
-    await this.dbService.updateTxCreatedRetailOrderByDto(
-      orderRetailDto.orderId!,
+    await this.dbService.updateTxCreatedRetailOrderById(
+      orderPkId,
       tx
     )
 
     orderRetailDto.txHashCreated = tx
     const orderId = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
+    await this.dbService.updateOrderIdOfRetailOrderById(
+      orderPkId,
+      orderId
+    )
 
     delete orderDto.noteCommitment
 
@@ -184,7 +188,7 @@ export class OrderRetailService {
     delete orderRetailDto.publicKey
 
     await this.orderEventService.logOrderStatusChange(
-      orderDto.orderId,
+      orderId,
       darkSwapContext.walletAddress,
       darkSwapContext.chainId,
       orderDto.status
