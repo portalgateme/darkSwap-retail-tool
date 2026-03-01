@@ -175,10 +175,10 @@ export class OrderRetailService {
     )
 
     orderRetailDto.txHashCreated = tx
-    const orderId = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
-    await this.dbService.updateOrderIdOfRetailOrderById(
+    const agentOrderId = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
+    await this.dbService.updateAgentOrderIdOfRetailOrderById(
       orderPkId,
-      orderId
+      agentOrderId
     )
 
     delete orderDto.noteCommitment
@@ -188,7 +188,7 @@ export class OrderRetailService {
     delete orderRetailDto.publicKey
 
     await this.orderEventService.logOrderStatusChange(
-      orderId,
+      orderDto.orderId,
       darkSwapContext.walletAddress,
       darkSwapContext.chainId,
       orderDto.status
@@ -371,9 +371,9 @@ export class OrderRetailService {
 
     for (const order of activeOrders) {
       try {
-        if (!order.orderId) {
+        if (!order.agentOrderId || order.agentOrderId === '' || !order.orderId) {
           console.warn(
-            `Order ${order.orderId} has no order id, skipping status sync`
+            `Order ${order.agentOrderId} has no agent order id, skipping status sync`
           )
           continue
         }
@@ -386,7 +386,7 @@ export class OrderRetailService {
 
         const orderFilled = await this.agentService.getOrderFilledByOrderId(
           order.chainId,
-          order.orderId,
+          order.agentOrderId,
           order.wallet,
           context.signer
         )

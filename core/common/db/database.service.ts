@@ -577,13 +577,13 @@ export class DatabaseService {
     stmt.run(txHashCreated, id)
   }
 
-  public async updateOrderIdOfRetailOrderById(
+  public async updateAgentOrderIdOfRetailOrderById(
     id: number,
-    orderId: string
+    agentOrderId: string
   ) {
-    const query = `UPDATE ORDERS SET orderId = ? WHERE id = ?`
+    const query = `UPDATE ORDERS SET agentOrderId = ? WHERE id = ?`
     const stmt = this.db.prepare(query)
-    stmt.run(orderId, id)
+    stmt.run(agentOrderId, id)
   }
 
   public async updateTxCreatedRetailOrderByDto(
@@ -1230,7 +1230,9 @@ export class DatabaseService {
     ) as OrderRetailDto[]
 
     return rows.map((row) => ({
+      id: row.id,
       orderId: row.orderId,
+      agentOrderId: row.agentOrderId,
       chainId: row.chainId,
       assetPairId: row.assetPairId,
       orderDirection: row.orderDirection,

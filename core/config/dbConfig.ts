@@ -34,6 +34,7 @@ export default {
     `CREATE TABLE IF NOT EXISTS ORDERS (
                                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                 orderId TEXT NOT NULL,
+                                                agentOrderId TEXT NULL, 
                                                 chainId INTEGER NOT NULL, 
                                                 assetPairId TEXT NOT NULL,
                                                 orderDirection INTEGER NOT NULL,
