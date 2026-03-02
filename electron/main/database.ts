@@ -61,7 +61,6 @@ const configs = db.prepare('SELECT * FROM configs').all() as Array<{
   value: string
 }>
 
-console.log('Loaded wallets from DB:', wallets)
 console.log('Loaded configs from DB:', configs)
 
 initializeCoreReloader({ db, dbPath })

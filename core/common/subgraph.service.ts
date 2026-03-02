@@ -43,4 +43,38 @@ export class SubgraphService {
 
     return data.data.darkSwapRetailDepositCreateOrders[0].transactionHash
   }
+
+  async getWithdrawTxByNote(
+    chainId: number,
+    nullifier: string
+  ): Promise<string | null> {
+    const query = `
+            query findWithdrawByNote{
+                darkSwapWithdraws(where: {nullifierIn: "${nullifier}"}) {
+                    transactionHash
+                }
+            }
+        `
+
+    const response = await fetch(networkConfig[chainId].drakSwapSubgraphUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ query })
+    })
+
+    const data = await response.json()
+
+    if (
+      !data ||
+      !data.data ||
+      !data.data.darkSwapWithdraws ||
+      data.data.darkSwapWithdraws.length === 0
+    ) {
+      return null
+    }
+
+    return data.data.darkSwapWithdraws[0].transactionHash
+  }
 }

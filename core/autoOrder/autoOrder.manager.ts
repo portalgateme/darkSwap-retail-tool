@@ -1,9 +1,10 @@
-import { deserializeDarkSwapMessage } from '@thesingularitynetwork/darkswap-sdk'
+import { calcNullifier, deserializeDarkSwapMessage, hexlify32 } from '@thesingularitynetwork/darkswap-sdk'
 import { ethers } from 'ethers'
 import { Logger } from 'tslog'
 import { v4 } from 'uuid'
 import { AssetManager } from '../assetManagement'
 import { DatabaseService } from '../common/db/database.service'
+import { OrderRetailService } from '../orders/orderRetail.service'
 import { OrderRetailManager } from '../retailOrderManagement'
 import {
   AutoOrderCycleState,
@@ -11,13 +12,12 @@ import {
   AutoOrderJobOrderDto,
   AutoOrderJobStatus,
   OrderDirection,
-  OrderRetailDto,
   OrderStatus,
   OrderType,
   SortType,
   WithdrawNoteDto
 } from '../types'
-import { OrderRetailService } from '../orders/orderRetail.service'
+import { SubgraphService } from '../common/subgraph.service'
 
 const PRICE_DECIMALS = 18
 
@@ -27,6 +27,7 @@ export class AutoOrderManager {
   private assetManager: AssetManager
   private orderRetailManager: OrderRetailManager
   private orderRetailService: OrderRetailService
+  private subgraphService: SubgraphService
   private intervalTimer?: NodeJS.Timeout
   private isTicking = false
   private defaultIntervalSeconds = 15
@@ -35,12 +36,14 @@ export class AutoOrderManager {
     dbService: DatabaseService,
     orderRetailManager: OrderRetailManager,
     assetManager: AssetManager,
-    orderRetailService: OrderRetailService
+    orderRetailService: OrderRetailService,
+    subgraphService: SubgraphService
   ) {
     this.dbService = dbService
     this.orderRetailManager = orderRetailManager
     this.assetManager = assetManager
     this.orderRetailService = orderRetailService
+    this.subgraphService = subgraphService
   }
 
   public start(intervalSeconds: number = this.defaultIntervalSeconds) {
@@ -330,7 +333,7 @@ export class AutoOrderManager {
         await this.handleWaitSell(job, now)
         break
       case AutoOrderCycleState.WITHDRAW_SELL:
-        await this.handleWithdrawSell(job, now)
+        await this.handleWithdraw(job, now, AutoOrderCycleState.CREATE_BUY)
         break
       case AutoOrderCycleState.CREATE_BUY:
         await this.handleCreateBuy(job, assetPair, now)
@@ -339,7 +342,7 @@ export class AutoOrderManager {
         await this.handleWaitBuy(job, now)
         break
       case AutoOrderCycleState.WITHDRAW_BUY:
-        await this.handleWithdrawBuy(job, now)
+        await this.handleWithdraw(job, now, AutoOrderCycleState.CREATE_SELL)
         break
     }
   }
@@ -489,11 +492,11 @@ export class AutoOrderManager {
     // Still waiting for order to settle
   }
 
-  private async handleWithdrawSell(job: AutoOrderJobDto, now: number) {
+  private async handleWithdraw(job: AutoOrderJobDto, now: number, nextCycleState: AutoOrderCycleState) {
     if (!job.activeOrderId) {
       await this.updateCycleState(
         job.jobId,
-        AutoOrderCycleState.CREATE_BUY,
+        nextCycleState,
         now
       )
       return
@@ -507,7 +510,7 @@ export class AutoOrderManager {
       await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
       await this.updateCycleState(
         job.jobId,
-        AutoOrderCycleState.CREATE_BUY,
+        nextCycleState,
         now
       )
       return
@@ -515,20 +518,31 @@ export class AutoOrderManager {
 
     if (order.status === OrderStatus.SETTLED) {
       const swapMessage = deserializeDarkSwapMessage(order.swapMessage!)
-      const withdrawNoteDto: WithdrawNoteDto = {
-        chainId: order.chainId,
-        wallet: order.wallet,
-        note: swapMessage.inNote
+
+      const nullifier = calcNullifier(swapMessage.inNote.rho, swapMessage.publicKey)
+
+      // Check if withdraw tx already exists
+      const withdrawTx = await this.subgraphService.getWithdrawTxByNote(
+        order.chainId,
+        hexlify32(nullifier)
+      )
+      if (!withdrawTx) {
+        const withdrawNoteDto: WithdrawNoteDto = {
+          chainId: order.chainId,
+          wallet: order.wallet,
+          note: swapMessage.inNote
+        }
+
+        await this.assetManager.withdrawNote(withdrawNoteDto)
       }
 
-      await this.assetManager.withdrawNote(withdrawNoteDto)
       await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
 
       // Save received amount for next order
       job.lastReceivedAmount = order.amountIn
       await this.updateCycleStateWithAmount(
         job.jobId,
-        AutoOrderCycleState.CREATE_BUY,
+        nextCycleState,
         order.amountIn,
         now
       )
@@ -679,57 +693,6 @@ export class AutoOrderManager {
     }
 
     // Still waiting for order to settle
-  }
-
-  private async handleWithdrawBuy(job: AutoOrderJobDto, now: number) {
-    if (!job.activeOrderId) {
-      // Cycle complete, start over
-      await this.updateCycleState(
-        job.jobId,
-        AutoOrderCycleState.CREATE_SELL,
-        now
-      )
-      return
-    }
-
-    const order = await this.dbService.getRetailOrderByOrderId(
-      job.activeOrderId
-    )
-
-    if (!order) {
-      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
-      await this.updateCycleState(
-        job.jobId,
-        AutoOrderCycleState.CREATE_SELL,
-        now
-      )
-      return
-    }
-
-    if (order.status === OrderStatus.SETTLED) {
-      const swapMessage = deserializeDarkSwapMessage(order.swapMessage!)
-      const withdrawNoteDto: WithdrawNoteDto = {
-        chainId: order.chainId,
-        wallet: order.wallet,
-        note: swapMessage.inNote
-      }
-
-      await this.assetManager.withdrawNote(withdrawNoteDto)
-      await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
-
-      // Save received amount for next order (back to sell)
-      job.lastReceivedAmount = order.amountIn
-      await this.updateCycleStateWithAmount(
-        job.jobId,
-        AutoOrderCycleState.CREATE_SELL,
-        order.amountIn,
-        now
-      )
-
-      this.logger.info(
-        `[Auto Order Cycle] Job ${job.jobId} withdrawn BUY proceeds from ${order.orderId}, received ${order.amountIn}`
-      )
-    }
   }
 
   private async updateCycleState(
