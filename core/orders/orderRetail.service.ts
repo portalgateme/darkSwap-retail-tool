@@ -8,27 +8,26 @@ import {
   RetailCreateOrderService,
   serializeDarkSwapMessage
 } from '@thesingularitynetwork/darkswap-sdk'
-import { ethers } from 'ethers'
 import { Logger } from 'tslog'
 import { v4 } from 'uuid'
-import MerkleAbi from '../abis/MerkleTreeOperator.json'
 import { AgentService } from '../common/agent.service'
 import { DarkSwapContext } from '../common/context/darkSwap.context'
 import { DatabaseService } from '../common/db/database.service'
 import { RpcManager } from '../common/rpcManager'
 import { SubgraphService } from '../common/subgraph.service'
-import { getConfirmations, networkConfig } from '../config/networkConfig'
+import { getConfirmations } from '../config/networkConfig'
 import {
   AssetPairDto,
   OrderDirection,
   OrderDto,
+  OrderNoteStatus,
   OrderRetailDto,
-  OrderStatus,
-  UpdatePriceDto
+  OrderStatus
 } from '../types'
 import { getBalance } from '../utils/getBalance'
 import { checkPrice } from '../utils/priceUtil'
 import { OrderEventService } from './orderEvent.service'
+import { NoteService } from '../common/note.service'
 
 export class OrderRetailService {
   private readonly logger = new Logger({ name: OrderRetailService.name })
@@ -38,19 +37,22 @@ export class OrderRetailService {
   private rpcManager: RpcManager
   private agentService: AgentService
   private subgraphService: SubgraphService
+  private noteService: NoteService
 
   public constructor(
     dbService: DatabaseService,
     orderEventService: OrderEventService,
     rpcManager: RpcManager,
     agentService: AgentService,
-    subgraphService: SubgraphService
+    subgraphService: SubgraphService,
+    noteService: NoteService
   ) {
     this.dbService = dbService
     this.rpcManager = rpcManager
     this.orderEventService = orderEventService
     this.agentService = agentService
     this.subgraphService = subgraphService
+    this.noteService = noteService
   }
 
   private async submitOrderToAgent(
@@ -241,34 +243,45 @@ export class OrderRetailService {
       throw new DarkSwapError('Order is not cancellable')
     }
 
-    const note = deserializeDarkSwapMessage(order.swapMessage!).orderNote
+    const swapMessage = deserializeDarkSwapMessage(order.swapMessage!)
 
-    const noteToProcess = {
-      note: note.note,
-      rho: note.rho,
-      asset: note.asset,
-      amount: note.amount,
-      feeRatio: BigInt(order.feeRatio)
-    } as DarkSwapOrderNote
-
-    const retailCancelOrderService = new RetailCancelOrderService(
-      darkSwapContext.darkSwap
+    const cancelTx = await this.subgraphService.getCancelTxByNote(
+      order.chainId,
+      order.nullifier!
     )
 
-    const { context } = await retailCancelOrderService.prepare(
-      darkSwapContext.walletAddress,
-      noteToProcess,
-      darkSwapContext.signature
-    )
+    if (!cancelTx) {
 
-    const tx = await retailCancelOrderService.execute(context)
-    const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
-      tx,
-      getConfirmations(darkSwapContext.chainId)
-    )
-    if (receipt && receipt.status !== 1) {
-      throw new DarkSwapError('Order cancellation failed')
+      const noteStatus = await this.noteService.checkNoteByPubkey(
+        swapMessage.orderNote,
+        order.publicKey!,
+        order.chainId
+      )
+
+      if (noteStatus == OrderNoteStatus.USED) {
+        throw new DarkSwapError('Order is not cancellable')
+      }
+
+      const retailCancelOrderService = new RetailCancelOrderService(
+        darkSwapContext.darkSwap
+      )
+
+      const { context } = await retailCancelOrderService.prepare(
+        darkSwapContext.walletAddress,
+        swapMessage.orderNote,
+        darkSwapContext.signature
+      )
+
+      const tx = await retailCancelOrderService.execute(context)
+      const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
+        tx,
+        getConfirmations(darkSwapContext.chainId)
+      )
+      if (receipt && receipt.status !== 1) {
+        throw new DarkSwapError('Order cancellation failed')
+      }
     }
+
     if (order.agentOrderId) {
       await this.agentService.cancelOrder(
         darkSwapContext.chainId,

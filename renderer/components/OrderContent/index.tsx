@@ -486,8 +486,8 @@ export const OrderContent = () => {
                     {row.orderDirection === OrderDirection.BUY ? 'Buy' : 'Sell'}
                   </TableCell>
                   <TableCell align='center'>
-                    {row.events[0] && (
-                      <OrderStatusLabel status={row.events[0].status} />
+                    {row.status != undefined && (
+                      <OrderStatusLabel status={row.status} />
                     )}
                   </TableCell>
 
@@ -516,7 +516,7 @@ export const OrderContent = () => {
                     <NetworkLabel chainId={row.chainId} />
                   </TableCell> */}
                   <TableCell>
-                    {row.events[0] && isCancelable(row.events[0].status) && (
+                    {row.events[0] && isCancelable(row.status) && (
                       <Button
                         variant='outlined'
                         color='error'

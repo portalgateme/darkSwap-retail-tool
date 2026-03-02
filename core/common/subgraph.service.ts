@@ -77,4 +77,38 @@ export class SubgraphService {
 
     return data.data.darkSwapWithdraws[0].transactionHash
   }
+
+  async getCancelTxByNote(
+    chainId: number,
+    nullifier: string
+  ): Promise<string | null> {
+    const query = `
+            query findCancelOrderWithdrawByNote{
+                darkSwapCancelOrderWithdraws(where: {nullifier: "${nullifier}"}) {
+                    transactionHash
+                }
+            }
+        `
+
+    const response = await fetch(networkConfig[chainId].drakSwapSubgraphUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ query })
+    })
+
+    const data = await response.json()
+
+    if (
+      !data ||
+      !data.data ||
+      !data.data.darkSwapCancelOrderWithdraws ||
+      data.data.darkSwapCancelOrderWithdraws.length === 0
+    ) {
+      return null
+    }
+
+    return data.data.darkSwapCancelOrderWithdraws[0].transactionHash
+  }
 }
