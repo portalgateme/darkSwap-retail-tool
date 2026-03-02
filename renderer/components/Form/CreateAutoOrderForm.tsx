@@ -205,6 +205,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           size='small'
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, width: 300 }}
+          color='success'
         />
         <TextField
           label='Max Price'
@@ -217,6 +218,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           size='small'
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, width: 300 }}
+          color='success'
         />
       </Stack>
 
@@ -238,6 +240,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           }}
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, width: 300 }}
+          color='success'
         />
 
         <TextField
@@ -252,6 +255,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           size='small'
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 300 }}
+          color='success'
         />
       </Stack>
 
@@ -273,6 +277,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
             style: { color: '#BDC1CA' }
           }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 240 }}
+          color='success'
         />
         <TextField
           label='End Date'
@@ -289,6 +294,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
             style: { color: '#BDC1CA' }
           }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 240 }}
+          color='success'
         />
         <TextField
           label='Interval (seconds)'
@@ -301,6 +307,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           size='small'
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 180 }}
+          color='success'
         />
       </Stack>
     </Stack>

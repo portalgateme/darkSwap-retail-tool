@@ -22,7 +22,7 @@ export const Header = ({ title }: HeaderProps) => {
   const [openModal, setOpenModal] = useState<boolean>(false)
   const [balances, setBalances] = useState<Record<string, string>>({})
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-  const { getBalances } = useTokenBalance()
+  // const { getBalances } = useTokenBalance()
 
   const { selectedAccount, setSelectedAccount, setOpenAddModal } =
     useAccountContext()
@@ -41,43 +41,43 @@ export const Header = ({ title }: HeaderProps) => {
     onCloseModal()
   }
 
-  useEffect(() => {
-    if (!chainId || !selectedAccount) return
-    getBalances(
-      chainId,
-      selectedAccount.address,
-      tokenConfig[chainId].map((token) => token.address)
-    ).then((bal) => {
-      const formattedBalances: Record<string, string> = {}
-      for (const [tokenAddress, balance] of Object.entries(bal)) {
-        const token = getTokenFromContract(tokenAddress, chainId)
-        if (token) {
-          const formattedBalance = ethers.formatUnits(balance, token.decimals)
-          formattedBalances[tokenAddress] = new Intl.NumberFormat('en-US', {
-            maximumFractionDigits: 6
-          }).format(Number(formattedBalance))
-        }
-      }
-      setBalances(formattedBalances)
-    })
-  }, [selectedAccount, currentChain])
+  // useEffect(() => {
+  //   if (!chainId || !selectedAccount) return
+  //   getBalances(
+  //     chainId,
+  //     selectedAccount.address,
+  //     tokenConfig[chainId].map((token) => token.address)
+  //   ).then((bal) => {
+  //     const formattedBalances: Record<string, string> = {}
+  //     for (const [tokenAddress, balance] of Object.entries(bal)) {
+  //       const token = getTokenFromContract(tokenAddress, chainId)
+  //       if (token) {
+  //         const formattedBalance = ethers.formatUnits(balance, token.decimals)
+  //         formattedBalances[tokenAddress] = new Intl.NumberFormat('en-US', {
+  //           maximumFractionDigits: 6
+  //         }).format(Number(formattedBalance))
+  //       }
+  //     }
+  //     setBalances(formattedBalances)
+  //   })
+  // }, [selectedAccount, currentChain])
 
-  const nativeTokenBalance = chainId
-    ? balances[
-        nativeToken[chainId]?.address ??
-          '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-      ] || '0'
-    : '0'
+  // const nativeTokenBalance = chainId
+  //   ? balances[
+  //       nativeToken[chainId]?.address ??
+  //         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
+  //     ] || '0'
+  //   : '0'
 
-  const handlePopoverOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
+  // const handlePopoverOpen = (event: React.MouseEvent<HTMLElement>) => {
+  //   setAnchorEl(event.currentTarget)
+  // }
 
-  const handlePopoverClose = () => {
-    setAnchorEl(null)
-  }
+  // const handlePopoverClose = () => {
+  //   setAnchorEl(null)
+  // }
 
-  const open = Boolean(anchorEl)
+  // const open = Boolean(anchorEl)
   return (
     <Stack
       direction={'row'}
@@ -107,7 +107,7 @@ export const Header = ({ title }: HeaderProps) => {
           spacing={1}
         >
           {/* Balance */}
-          <Stack
+          {/* <Stack
             direction={'row'}
             alignItems={'center'}
             sx={{
@@ -141,7 +141,7 @@ export const Header = ({ title }: HeaderProps) => {
             >
               {nativeToken[chainId ?? ChainId.SEPOLIA].symbol}
             </Typography>
-          </Stack>
+          </Stack> */}
 
           <Button
             variant='contained'
@@ -161,7 +161,7 @@ export const Header = ({ title }: HeaderProps) => {
           </Button>
         </Stack>
 
-        <Popover
+        {/* <Popover
           id='mouse-over-popover'
           sx={{
             pointerEvents: 'none'
@@ -214,7 +214,7 @@ export const Header = ({ title }: HeaderProps) => {
                 )
               })}
           </Box>
-        </Popover>
+        </Popover> */}
       </Stack>
 
       <SelectAccountModal
