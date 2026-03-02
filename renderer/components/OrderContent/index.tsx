@@ -486,7 +486,7 @@ export const OrderContent = () => {
                     {row.orderDirection === OrderDirection.BUY ? 'Buy' : 'Sell'}
                   </TableCell>
                   <TableCell align='center'>
-                    {row.status && (
+                    {row.status != undefined && (
                       <OrderStatusLabel status={row.status} />
                     )}
                   </TableCell>
