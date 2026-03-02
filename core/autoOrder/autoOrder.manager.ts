@@ -252,6 +252,7 @@ export class AutoOrderManager {
       const jobs = await this.dbService.getAutoOrderJobsByStatus(
         AutoOrderJobStatus.ACTIVE
       )
+
       if (!jobs.length) return
 
       const now = Date.now()
@@ -321,6 +322,7 @@ export class AutoOrderManager {
       return
     }
 
+
     switch (cycleState) {
       case AutoOrderCycleState.CREATE_SELL:
         await this.handleCreateSell(job, assetPair, now)
@@ -369,7 +371,14 @@ export class AutoOrderManager {
     if (!orderPrice) return
 
     // Use lastReceivedAmount as amountOut for sell order if available
-    const sellAmountOut = job.lastReceivedAmount || job.amountOut
+    let sellAmountOut = job.amountOut
+    const amountFromLastOrder = await this.getAmountFromLastOrder(job)
+    if (amountFromLastOrder) {
+      sellAmountOut = amountFromLastOrder
+    } else if (job.lastReceivedAmount && job.lastReceivedAmount !== '0') {
+      sellAmountOut = job.lastReceivedAmount
+    }
+
     const sellJob = { ...job, amountOut: sellAmountOut }
 
     const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
@@ -410,7 +419,12 @@ export class AutoOrderManager {
     }
 
     await this.dbService.addAutoOrderJobOrder(log)
-    await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, orderId, now)
+    await this.dbService.updateAutoOrderJobActiveOrder(
+      job.jobId,
+      orderId,
+      now,
+      orderId
+    )
     await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_SELL, now)
 
     this.logger.info(
@@ -542,7 +556,14 @@ export class AutoOrderManager {
       if (!orderPrice) return
 
       // Use lastReceivedAmount as amountOut for buy order if available
-      const buyAmountOut = job.lastReceivedAmount || job.amountOut
+      let buyAmountOut = job.amountOut
+      const amountFromLastOrder = await this.getAmountFromLastOrder(job)
+      if (amountFromLastOrder) {
+        buyAmountOut = amountFromLastOrder
+      } else {
+
+      }
+
       const buyTempJob = { ...tempJob, amountOut: buyAmountOut }
 
       const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
@@ -586,7 +607,8 @@ export class AutoOrderManager {
       await this.dbService.updateAutoOrderJobActiveOrder(
         job.jobId,
         orderId,
-        now
+        now,
+        orderId
       )
       await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_BUY, now)
 
@@ -753,6 +775,42 @@ export class AutoOrderManager {
     }
 
     return orderPrice
+  }
+
+  private async getAmountFromLastOrder(
+    job: AutoOrderJobDto
+  ): Promise<string | undefined> {
+    if (!job.lastOrderId) {
+      return job.amountOut
+    }
+
+    const order = await this.dbService.getRetailOrderByOrderId(
+      job.lastOrderId
+    )
+    if (!order || !order.swapMessage) {
+      return undefined
+    }
+
+    const assetPair = await this.dbService.getAssetPairById(
+      job.assetPairId,
+      job.chainId
+    )
+    if (!assetPair) {
+      return undefined
+    }
+
+    const swapMessage = deserializeDarkSwapMessage(order.swapMessage)
+    if (
+      swapMessage &&
+      swapMessage.inNote &&
+      swapMessage.inNote.amount
+    ) {
+      const decimal = order.orderDirection === OrderDirection.SELL ? assetPair.quoteDecimal : assetPair.baseDecimal
+
+      return ethers.formatUnits(swapMessage.inNote.amount.toString(), decimal)
+    }
+
+    return undefined
   }
 
   private computeOrderAmounts(

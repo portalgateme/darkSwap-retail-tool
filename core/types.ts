@@ -225,6 +225,7 @@ export interface AutoOrderJobDto extends BaseDto {
   cycleState?: AutoOrderCycleState
   startDirection?: OrderDirection
   lastReceivedAmount?: string
+  lastOrderId?: string
   createdAt?: Date
   updatedAt?: Date
 }

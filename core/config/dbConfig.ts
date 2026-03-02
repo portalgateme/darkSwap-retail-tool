@@ -93,6 +93,7 @@ export default {
                                                 cycleState INTEGER NOT NULL,
                                                 startDirection INTEGER NOT NULL,
                                                 lastReceivedAmount TEXT,
+                                                lastOrderId TEXT,
                                                 activeOrderId TEXT,
                                                 lastRunAt INTEGER,
                                                 createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

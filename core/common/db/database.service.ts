@@ -52,6 +52,10 @@ interface AutoOrderJobEntity {
   endAt?: number
   intervalSeconds: number
   status: number
+  cycleState: number
+  startDirection: number
+  lastReceivedAmount?: string
+  lastOrderId?: string
   activeOrderId?: string
   lastRunAt?: number
   createdAt: Date
@@ -78,6 +82,12 @@ export class DatabaseService {
   private async init() {
     for (const table of config.tables) {
       this.db.exec(table)
+    }
+
+    try {
+      this.db.exec('ALTER TABLE AUTO_ORDER_JOBS ADD COLUMN lastOrderId TEXT')
+    } catch (e) {
+      // ignore
     }
   }
 
@@ -947,8 +957,8 @@ export class DatabaseService {
     const query = `INSERT INTO AUTO_ORDER_JOBS (
       jobId, chainId, wallet, assetPairId, orderDirection, orderType,
       timeInForce, stpMode, price, marketPrice, minPrice, maxPrice, amountOut, feeRatio,
-      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
     const stmt = this.db.prepare(query)
     stmt.run(
@@ -974,7 +984,8 @@ export class DatabaseService {
       job.lastRunAt ?? null,
       job.cycleState ?? AutoOrderCycleState.CREATE_SELL,
       job.startDirection ?? job.orderDirection,
-      job.lastReceivedAmount ?? '0'
+      job.lastReceivedAmount ?? '0',
+      job.lastOrderId ?? null
     )
   }
 
@@ -1008,8 +1019,12 @@ export class DatabaseService {
       endAt: row.endAt,
       intervalSeconds: row.intervalSeconds,
       status: row.status,
+      cycleState: row.cycleState,
       activeOrderId: row.activeOrderId,
       lastRunAt: row.lastRunAt,
+      startDirection: row.startDirection,
+      lastReceivedAmount: row.lastReceivedAmount,
+      lastOrderId: row.lastOrderId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     }
@@ -1042,8 +1057,12 @@ export class DatabaseService {
       endAt: row.endAt,
       intervalSeconds: row.intervalSeconds,
       status: row.status,
+      cycleState: row.cycleState,
       activeOrderId: row.activeOrderId,
       lastRunAt: row.lastRunAt,
+      startDirection: row.startDirection,
+      lastReceivedAmount: row.lastReceivedAmount,
+      lastOrderId: row.lastOrderId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     }))
@@ -1061,11 +1080,18 @@ export class DatabaseService {
   public async updateAutoOrderJobActiveOrder(
     jobId: string,
     activeOrderId: string | null,
-    lastRunAt?: number
+    lastRunAt?: number,
+    lastOrderId?: string | null
   ) {
-    const query = `UPDATE AUTO_ORDER_JOBS SET activeOrderId = ?, lastRunAt = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
-    const stmt = this.db.prepare(query)
-    stmt.run(activeOrderId, lastRunAt ?? null, jobId)
+    if (lastOrderId !== undefined) {
+      const query = `UPDATE AUTO_ORDER_JOBS SET activeOrderId = ?, lastRunAt = ?, lastOrderId = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
+      const stmt = this.db.prepare(query)
+      stmt.run(activeOrderId, lastRunAt ?? null, lastOrderId, jobId)
+    } else {
+      const query = `UPDATE AUTO_ORDER_JOBS SET activeOrderId = ?, lastRunAt = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
+      const stmt = this.db.prepare(query)
+      stmt.run(activeOrderId, lastRunAt ?? null, jobId)
+    }
   }
 
   public async updateAutoOrderJobLastRun(jobId: string, lastRunAt: number) {
@@ -1100,6 +1126,10 @@ export class DatabaseService {
       startAt = ?,
       endAt = ?,
       intervalSeconds = ?,
+      cycleState = ?,
+      startDirection = ?,
+      lastReceivedAmount = ?,
+      lastOrderId = ?,
       updatedAt = CURRENT_TIMESTAMP
       WHERE jobId = ?`
 
@@ -1119,6 +1149,10 @@ export class DatabaseService {
       job.startAt,
       job.endAt ?? null,
       job.intervalSeconds,
+      job.cycleState,
+      job.startDirection ?? job.orderDirection,
+      job.lastReceivedAmount ?? '0',
+      job.lastOrderId ?? null,
       job.jobId
     )
   }
@@ -1184,8 +1218,12 @@ export class DatabaseService {
       endAt: row.endAt,
       intervalSeconds: row.intervalSeconds,
       status: row.status,
+      cycleState: row.cycleState,
       activeOrderId: row.activeOrderId,
       lastRunAt: row.lastRunAt,
+      startDirection: row.startDirection,
+      lastReceivedAmount: row.lastReceivedAmount,
+      lastOrderId: row.lastOrderId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     }))
