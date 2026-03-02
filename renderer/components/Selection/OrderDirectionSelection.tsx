@@ -26,6 +26,7 @@ export const OrderDirectionSelection: React.FC<{
           }
         }
       }}
+      color='success'
     >
       <MenuItem value={OrderDirection.BUY}>Buy</MenuItem>
       <MenuItem value={OrderDirection.SELL}>Sell</MenuItem>
