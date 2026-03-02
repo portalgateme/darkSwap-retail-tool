@@ -76,7 +76,6 @@ export class OrderRetailService {
         txHashCreated: txHash,
         swapMessage: serializeDarkSwapMessage(swapMessage)
       }
-      console.log('orderRetailDto', orderRetailDto)
       agentOrderIdFromAgent = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
 
     }
@@ -122,10 +121,6 @@ export class OrderRetailService {
         orderDto.chainId,
         hexlify32(swapMessage.orderNote.note)
       )
-
-      console.log('createOrderTx', createOrderTx);
-
-
 
       if (createOrderTx) {
         await this.submitOrderToAgent(
@@ -336,9 +331,6 @@ export class OrderRetailService {
     for (const order of activeOrders) {
       try {
         if (!order.agentOrderId || order.agentOrderId === '' || !order.orderId) {
-          console.warn(
-            `Order ${order.agentOrderId} has no agent order id, skipping status sync`
-          )
           continue
         }
 
