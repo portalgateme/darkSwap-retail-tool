@@ -39,10 +39,6 @@ export class BasicService {
         darkSwapContext.signature
       )
 
-    if (newBalanceNote.amount > 0n) {
-      this.noteService.addNote(newBalanceNote, darkSwapContext, false)
-    }
-
     const tx = await withdrawService.execute(withdrawContext)
 
     const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
@@ -56,9 +52,6 @@ export class BasicService {
     // TODO: retail in not is not stored
     // this.noteService.setNoteUsed(note, darkSwapContext)
 
-    if (newBalanceNote.amount > 0n) {
-      this.noteService.setNoteActive(newBalanceNote, darkSwapContext, tx)
-    }
     this.logger.info(
       `Withdraw of ${note.amount} ${note.asset} for wallet ${darkSwapContext.walletAddress} completed with tx ${withdrawContext.tx}`
     )

@@ -56,7 +56,8 @@ export class DarkSwapClientCore {
       orderEventService,
       this.rpcManager,
       agentService,
-      subgraphService
+      subgraphService,
+      noteService
     )
     this.orderRetailManager = new OrderRetailManager(
       orderRetailService,

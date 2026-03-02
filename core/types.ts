@@ -117,12 +117,6 @@ export interface ProofOptionsConfig {
   memory?: number
 }
 
-export interface FireblocksConfig {
-  privateKey: string
-  apiKey: string
-  apiBaseUrl?: string
-}
-
 export interface DarkSwapConfig {
   wallets: WalletConfig[]
   chainRpcs: ChainRpcConfig[]

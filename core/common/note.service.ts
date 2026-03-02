@@ -20,68 +20,6 @@ export class NoteService {
     this.rpcManager = rpcManager
   }
 
-  public async addNotes(
-    notes: DarkSwapNote[],
-    darkSwapContext: DarkSwapContext,
-    isOrderNote: boolean
-  ) {
-    for (const note of notes) {
-      if (note && note.amount !== 0n) {
-        this.addNote(note, darkSwapContext, isOrderNote)
-      }
-    }
-  }
-
-  public addNote(
-    note: DarkSwapNote,
-    darkSwapContext: DarkSwapContext,
-    isOrderNote: boolean,
-    txHash?: string
-  ) {
-    this.dbService.addNote(
-      darkSwapContext.chainId,
-      darkSwapContext.publicKey,
-      darkSwapContext.walletAddress,
-      isOrderNote ? NoteType.DARKSWAP_ORDER : NoteType.DARKSWAP,
-      note.note,
-      note.rho,
-      note.asset,
-      note.amount,
-      txHash ? txHash : ''
-    )
-  }
-
-  public setNoteUsed(note: DarkSwapNote, darkSwapContext: DarkSwapContext) {
-    this.dbService.updateNoteSpentByWalletAndNoteCommitment(
-      darkSwapContext.walletAddress,
-      darkSwapContext.chainId,
-      note.note
-    )
-  }
-
-  public async setNotesActive(
-    notes: DarkSwapNote[],
-    darkSwapContext: DarkSwapContext,
-    txHash: string
-  ) {
-    for (const note of notes) {
-      await this.setNoteActive(note, darkSwapContext, txHash)
-    }
-  }
-
-  public async setNoteActive(
-    note: DarkSwapNote,
-    darkSwapContext: DarkSwapContext,
-    txHash: string
-  ) {
-    await this.dbService.updateNoteTransactionByWalletAndNoteCommitment(
-      darkSwapContext.walletAddress,
-      darkSwapContext.chainId,
-      note.note,
-      txHash
-    )
-  }
-
   private async getNoteCommitmentStatus(
     note: bigint,
     chainId: number
@@ -111,24 +49,6 @@ export class NoteService {
         this.rpcManager.getProvider(chainId)
       )
       const result = await contract.nullifiersUsed(nullifier)
-      return result as boolean
-    } catch (e) {
-      console.log(e)
-      return false
-    }
-  }
-
-  private async getNoteLockedStatus(
-    nullifier: string,
-    chainId: number
-  ): Promise<boolean> {
-    try {
-      const contract = new ethers.Contract(
-        networkConfig[chainId].merkleTreeOperator,
-        MerkleAbi.abi,
-        this.rpcManager.getProvider(chainId)
-      )
-      const result = await contract.nullifiersLocked(nullifier)
       return result as boolean
     } catch (e) {
       console.log(e)

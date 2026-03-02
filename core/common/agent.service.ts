@@ -2,6 +2,7 @@ import { ethers } from "ethers";
 import axios from "axios";
 import { deserializeDarkSwapMessage } from "@thesingularitynetwork/darkswap-sdk";
 import { AssetPairDto, DarkSwapConfig, OrderDirection, OrderRetailDto, OrderType } from "../types";
+import { ToolRetriableException } from "./exception";
 
 export class AgentService {
 
@@ -149,19 +150,27 @@ export class AgentService {
         const timestamp = new Date().toISOString()
         const message = `${wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
         const signature = await signer.signMessage(message);
-        const response = await axios.get(`${agentUrl}/orders/query`, {
-            params: {
-                chainId,
-                txHash
-            },
-            headers: {
-                'x-wallet-address': wallet.toLowerCase(),
-                'x-wallet-signature': signature,
-                'x-wallet-timestamp': timestamp
+        try {
+            const response = await axios.get(`${agentUrl}/orders/query`, {
+                params: {
+                    chainId,
+                    txHash
+                },
+                headers: {
+                    'x-wallet-address': wallet.toLowerCase(),
+                    'x-wallet-signature': signature,
+                    'x-wallet-timestamp': timestamp
+                }
+            });
+            if (response.status !== 200) throw new ToolRetriableException('Get orderId from agent failed');
+            return response?.data?.data?.orderId || null;
+        } catch (error) {
+            if (error instanceof Error) {
+                throw new ToolRetriableException('Get orderId from agent failed', error);
+            } else {
+                throw new ToolRetriableException('Get orderId from agent failed');
             }
-        });
-        if (response.status !== 200) throw new Error('Get order detail failed');
-        return response?.data?.data?.orderId || null;
+        }
     }
 
     public async getOrderFilledByOrderId(
@@ -175,19 +184,23 @@ export class AgentService {
         const timestamp = new Date().toISOString()
         const message = `${wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
         const signature = await signer.signMessage(message);
-        const response = await axios.get(`${agentUrl}/orders/detail`, {
-            params: {
-                orderId
-            },
-            headers: {
-                'x-wallet-address': wallet.toLowerCase(),
-                'x-wallet-signature': signature,
-                'x-wallet-timestamp': timestamp
-            }
-        });
-        if (response.status !== 200) return false;
-        const status = response.data?.data?.status || '';
-        return [3, 10].includes(status);
-    };
 
+        try {
+            const response = await axios.get(`${agentUrl}/orders/detail`, {
+                params: {
+                    orderId
+                },
+                headers: {
+                    'x-wallet-address': wallet.toLowerCase(),
+                    'x-wallet-signature': signature,
+                    'x-wallet-timestamp': timestamp
+                }
+            });
+            if (response.status !== 200) return false;
+            const status = response.data?.data?.status || ''
+            return [3, 10].includes(status);
+        } catch (error) {
+            return false
+        }
+    };
 }
