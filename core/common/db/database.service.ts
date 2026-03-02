@@ -579,21 +579,21 @@ export class DatabaseService {
   }
 
   public async updateTxCreatedRetailOrderById(
-    id: number,
+    orderId: string,
     txHashCreated: string
   ) {
-    const query = `UPDATE ORDERS SET txHashCreated = ? WHERE id = ?`
+    const query = `UPDATE ORDERS SET txHashCreated = ? WHERE orderId = ?`
     const stmt = this.db.prepare(query)
-    stmt.run(txHashCreated, id)
+    stmt.run(txHashCreated, orderId)
   }
 
   public async updateAgentOrderIdOfRetailOrderById(
-    id: number,
+    orderId: string,
     agentOrderId: string
   ) {
-    const query = `UPDATE ORDERS SET agentOrderId = ? WHERE id = ?`
+    const query = `UPDATE ORDERS SET agentOrderId = ? WHERE orderId = ?`
     const stmt = this.db.prepare(query)
-    stmt.run(agentOrderId, id)
+    stmt.run(agentOrderId, orderId)
   }
 
   public async updateTxCreatedRetailOrderByDto(
@@ -1080,18 +1080,20 @@ export class DatabaseService {
   public async updateAutoOrderJobActiveOrder(
     jobId: string,
     activeOrderId: string | null,
-    lastRunAt?: number,
-    lastOrderId?: string | null
+    lastRunAt: number | null
   ) {
-    if (lastOrderId !== undefined) {
-      const query = `UPDATE AUTO_ORDER_JOBS SET activeOrderId = ?, lastRunAt = ?, lastOrderId = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
-      const stmt = this.db.prepare(query)
-      stmt.run(activeOrderId, lastRunAt ?? null, lastOrderId, jobId)
-    } else {
-      const query = `UPDATE AUTO_ORDER_JOBS SET activeOrderId = ?, lastRunAt = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
-      const stmt = this.db.prepare(query)
-      stmt.run(activeOrderId, lastRunAt ?? null, jobId)
-    }
+    const query = `UPDATE AUTO_ORDER_JOBS SET activeOrderId = ?, lastRunAt = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(activeOrderId, lastRunAt ?? null, jobId)
+  }
+
+  public async updateAutoOrderJobLastOrder(
+    jobId: string,
+    lastOrderId: string
+  ) {
+    const query = `UPDATE AUTO_ORDER_JOBS SET lastOrderId = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(lastOrderId, jobId)
   }
 
   public async updateAutoOrderJobLastRun(jobId: string, lastRunAt: number) {

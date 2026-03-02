@@ -1,17 +1,14 @@
-import { DarkSwapError } from '@thesingularitynetwork/darkswap-sdk'
+import { DarkSwapContext } from './common/context/darkSwap.context'
 import { WalletMutexService } from './common/mutex/walletMutex.service'
+import { RpcManager } from './common/rpcManager'
 import { OrderEventService } from './orders/orderEvent.service'
+import { OrderRetailService } from './orders/orderRetail.service'
 import {
   CancelOrderDto,
   OrderDto,
   OrderEventDto,
-  OrderRetailDto,
-  OrderType,
-  UpdatePriceDto
+  OrderRetailDto
 } from './types'
-import { DarkSwapContext } from './common/context/darkSwap.context'
-import { RpcManager } from './common/rpcManager'
-import { OrderRetailService } from './orders/orderRetail.service'
 
 export class OrderRetailManager {
   private walletMutexService: WalletMutexService
@@ -77,28 +74,9 @@ export class OrderRetailManager {
   }
 
   public async createOrder(orderDto: OrderRetailDto): Promise<void> {
-    if (orderDto.orderId) {
-      const order = await this.orderRetailService.getOrderById(orderDto.orderId)
-      if (order) {
-        throw new DarkSwapError('Duplicate Order ID')
-      }
-    }
-
-    if (
-      orderDto.orderType === OrderType.STOP_LOSS_LIMIT ||
-      orderDto.orderType === OrderType.STOP_LOSS ||
-      orderDto.orderType === OrderType.TAKE_PROFIT ||
-      orderDto.orderType === OrderType.TAKE_PROFIT_LIMIT
-    ) {
-      if (
-        !orderDto.orderTriggerPrice ||
-        isNaN(Number(orderDto.orderTriggerPrice)) ||
-        Number(orderDto.orderTriggerPrice) <= 0
-      ) {
-        throw new DarkSwapError(
-          'Order trigger price is required for stop loss or take profit orders'
-        )
-      }
+    const order = await this.orderRetailService.getRetailOrderById(orderDto.orderId)
+    if (order) {
+      orderDto = order
     }
 
     const context = await DarkSwapContext.createDarkSwapContext(
@@ -129,10 +107,6 @@ export class OrderRetailManager {
     await mutex.runExclusive(async () => {
       await this.orderRetailService.cancelOrder(cancelOrderDto.orderId, context)
     })
-  }
-
-  public async updateOrderPrice(updatePriceDto: UpdatePriceDto) {
-    await this.orderRetailService.updateOrderPrice(updatePriceDto)
   }
 
   public getAllOrders(status: number, page: number, limit: number) {

@@ -1,26 +1,23 @@
-import { v4 } from 'uuid'
-import { Logger } from 'tslog'
+import { deserializeDarkSwapMessage } from '@thesingularitynetwork/darkswap-sdk'
 import { ethers } from 'ethers'
-import { DatabaseService } from '../common/db/database.service'
+import { Logger } from 'tslog'
+import { v4 } from 'uuid'
 import { AssetManager } from '../assetManagement'
-import { OrderManager } from '../orderManagement'
+import { DatabaseService } from '../common/db/database.service'
+import { OrderRetailManager } from '../retailOrderManagement'
 import {
-  AutoOrderJobDto,
-  AutoOrderJobStatus,
   AutoOrderCycleState,
+  AutoOrderJobDto,
   AutoOrderJobOrderDto,
-  DepositDto,
-  OrderDto,
+  AutoOrderJobStatus,
   OrderDirection,
-  OrderType,
-  OrderStatus,
-  SortType,
-  WithdrawDto,
   OrderRetailDto,
+  OrderStatus,
+  OrderType,
+  SortType,
   WithdrawNoteDto
 } from '../types'
-import { OrderRetailManager } from '../retailOrderManagement'
-import { deserializeDarkSwapMessage } from '@thesingularitynetwork/darkswap-sdk'
+import { OrderRetailService } from '../orders/orderRetail.service'
 
 const PRICE_DECIMALS = 18
 
@@ -29,6 +26,7 @@ export class AutoOrderManager {
   private dbService: DatabaseService
   private assetManager: AssetManager
   private orderRetailManager: OrderRetailManager
+  private orderRetailService: OrderRetailService
   private intervalTimer?: NodeJS.Timeout
   private isTicking = false
   private defaultIntervalSeconds = 15
@@ -36,11 +34,13 @@ export class AutoOrderManager {
   public constructor(
     dbService: DatabaseService,
     orderRetailManager: OrderRetailManager,
-    assetManager: AssetManager
+    assetManager: AssetManager,
+    orderRetailService: OrderRetailService
   ) {
     this.dbService = dbService
     this.orderRetailManager = orderRetailManager
     this.assetManager = assetManager
+    this.orderRetailService = orderRetailService
   }
 
   public start(intervalSeconds: number = this.defaultIntervalSeconds) {
@@ -85,8 +85,7 @@ export class AutoOrderManager {
     }
 
     if (
-      job.orderType === OrderType.LIMIT ||
-      job.orderType === OrderType.LIMIT_MAKER
+      job.orderType === OrderType.LIMIT
     ) {
       const limitPrice = Number(job.price)
       if (isNaN(limitPrice) || limitPrice <= 0) {
@@ -360,53 +359,65 @@ export class AutoOrderManager {
       return
     }
 
+    let orderDto = undefined
+    let orderId: string
     if (job.activeOrderId) {
-      // Already has active order, just wait
-      await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_SELL, now)
-      return
+      orderId = job.activeOrderId
+      const tmpOrderDto = await this.orderRetailService.getRetailOrderById(job.activeOrderId)
+      if (tmpOrderDto) {
+        orderDto = tmpOrderDto
+      }
+    } else {
+      orderId = v4()
+      await this.dbService.updateAutoOrderJobActiveOrder(
+        job.jobId,
+        orderId,
+        null
+      )
     }
 
-    // Create sell order
-    const orderPrice = await this.getOrderPrice(job)
-    if (!orderPrice) return
+    if (!orderDto) {
+      // Create sell order
+      const orderPrice = await this.getOrderPrice(job)
+      if (!orderPrice) return
 
-    // Use lastReceivedAmount as amountOut for sell order if available
-    let sellAmountOut = job.amountOut
-    const amountFromLastOrder = await this.getAmountFromLastOrder(job)
-    if (amountFromLastOrder) {
-      sellAmountOut = amountFromLastOrder
-    } else if (job.lastReceivedAmount && job.lastReceivedAmount !== '0') {
-      sellAmountOut = job.lastReceivedAmount
-    }
+      // Use lastReceivedAmount as amountOut for sell order if available
+      let sellAmountOut = job.amountOut
+      const amountFromLastOrder = await this.getAmountFromLastOrder(job)
+      if (amountFromLastOrder) {
+        sellAmountOut = amountFromLastOrder
+      } else if (job.lastReceivedAmount && job.lastReceivedAmount !== '0') {
+        sellAmountOut = job.lastReceivedAmount
+      }
 
-    const sellJob = { ...job, amountOut: sellAmountOut }
+      const sellJob = { ...job, amountOut: sellAmountOut }
 
-    const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
-      sellJob,
-      assetPair.baseDecimal,
-      assetPair.quoteDecimal,
-      orderPrice
-    )
+      const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
+        sellJob,
+        assetPair.baseDecimal,
+        assetPair.quoteDecimal,
+        orderPrice
+      )
 
-    if (amountInRaw <= 0n || amountOutRaw <= 0n) {
-      return
-    }
+      if (amountInRaw <= 0n || amountOutRaw <= 0n) {
+        return
+      }
 
-    const orderId = v4()
-    const orderDto: OrderRetailDto = {
-      orderId: orderId,
-      wallet: job.wallet,
-      chainId: job.chainId,
-      assetPairId: job.assetPairId,
-      orderDirection: OrderDirection.SELL,
-      orderType: job.orderType,
-      timeInForce: job.timeInForce,
-      stpMode: job.stpMode,
-      price: orderPrice,
-      amountOut: amountOutRaw.toString(),
-      amountIn: amountInRaw.toString(),
-      partialAmountIn: amountInRaw.toString(),
-      feeRatio: job.feeRatio
+      orderDto = {
+        orderId: orderId,
+        wallet: job.wallet,
+        chainId: job.chainId,
+        assetPairId: job.assetPairId,
+        orderDirection: OrderDirection.SELL,
+        orderType: job.orderType,
+        timeInForce: job.timeInForce,
+        stpMode: job.stpMode,
+        price: orderPrice,
+        amountOut: amountOutRaw.toString(),
+        amountIn: amountInRaw.toString(),
+        partialAmountIn: amountInRaw.toString(),
+        feeRatio: job.feeRatio
+      }
     }
 
     await this.orderRetailManager.createOrder(orderDto)
@@ -419,17 +430,11 @@ export class AutoOrderManager {
     }
 
     await this.dbService.addAutoOrderJobOrder(log)
-    await this.dbService.updateAutoOrderJobActiveOrder(
+    await this.dbService.updateAutoOrderJobLastOrder(
       job.jobId,
-      orderId,
-      now,
       orderId
     )
     await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_SELL, now)
-
-    this.logger.info(
-      `[Auto Order Cycle] Job ${job.jobId} created SELL order ${orderDto.orderId} with amount ${sellAmountOut}`
-    )
   }
 
   private async handleWaitSell(job: AutoOrderJobDto, now: number) {
@@ -543,55 +548,63 @@ export class AutoOrderManager {
       // Need to flip direction for buy order
       const tempJob = { ...job, orderDirection: OrderDirection.BUY }
 
+      let orderDto = undefined
+      let orderId: string
       if (job.activeOrderId) {
-        await this.updateCycleState(
-          job.jobId,
-          AutoOrderCycleState.WAIT_BUY,
-          now
-        )
-        return
-      }
-
-      const orderPrice = await this.getOrderPrice(tempJob)
-      if (!orderPrice) return
-
-      // Use lastReceivedAmount as amountOut for buy order if available
-      let buyAmountOut = job.amountOut
-      const amountFromLastOrder = await this.getAmountFromLastOrder(job)
-      if (amountFromLastOrder) {
-        buyAmountOut = amountFromLastOrder
+        orderId = job.activeOrderId
+        const tmpOrderDto = await this.orderRetailService.getRetailOrderById(job.activeOrderId)
+        if (tmpOrderDto) {
+          orderDto = tmpOrderDto
+        }
       } else {
-
+        orderId = v4()
+        await this.dbService.updateAutoOrderJobActiveOrder(
+          job.jobId,
+          orderId,
+          null
+        )
       }
 
-      const buyTempJob = { ...tempJob, amountOut: buyAmountOut }
+      if (!orderDto) {
+        const orderPrice = await this.getOrderPrice(tempJob)
+        if (!orderPrice) return
 
-      const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
-        buyTempJob,
-        assetPair.baseDecimal,
-        assetPair.quoteDecimal,
-        orderPrice
-      )
+        // Use lastReceivedAmount as amountOut for buy order if available
+        let buyAmountOut = job.amountOut
+        const amountFromLastOrder = await this.getAmountFromLastOrder(job)
+        if (amountFromLastOrder) {
+          buyAmountOut = amountFromLastOrder
+        } else {
 
-      if (amountInRaw <= 0n || amountOutRaw <= 0n) {
-        return
-      }
+        }
+        const buyTempJob = { ...tempJob, amountOut: buyAmountOut }
 
-      const orderId = v4()
-      const orderDto: OrderRetailDto = {
-        orderId: orderId,
-        wallet: job.wallet,
-        chainId: job.chainId,
-        assetPairId: job.assetPairId,
-        orderDirection: OrderDirection.BUY,
-        orderType: job.orderType,
-        timeInForce: job.timeInForce,
-        stpMode: job.stpMode,
-        price: orderPrice,
-        amountOut: amountOutRaw.toString(),
-        amountIn: amountInRaw.toString(),
-        partialAmountIn: amountInRaw.toString(),
-        feeRatio: job.feeRatio
+        const { amountOutRaw, amountInRaw } = this.computeOrderAmounts(
+          buyTempJob,
+          assetPair.baseDecimal,
+          assetPair.quoteDecimal,
+          orderPrice
+        )
+
+        if (amountInRaw <= 0n || amountOutRaw <= 0n) {
+          return
+        }
+
+        orderDto = {
+          orderId: orderId,
+          wallet: job.wallet,
+          chainId: job.chainId,
+          assetPairId: job.assetPairId,
+          orderDirection: OrderDirection.BUY,
+          orderType: job.orderType,
+          timeInForce: job.timeInForce,
+          stpMode: job.stpMode,
+          price: orderPrice,
+          amountOut: amountOutRaw.toString(),
+          amountIn: amountInRaw.toString(),
+          partialAmountIn: amountInRaw.toString(),
+          feeRatio: job.feeRatio
+        }
       }
 
       await this.orderRetailManager.createOrder(orderDto)
@@ -604,16 +617,14 @@ export class AutoOrderManager {
       }
 
       await this.dbService.addAutoOrderJobOrder(log)
-      await this.dbService.updateAutoOrderJobActiveOrder(
+      await this.dbService.updateAutoOrderJobLastOrder(
         job.jobId,
-        orderId,
-        now,
         orderId
       )
       await this.updateCycleState(job.jobId, AutoOrderCycleState.WAIT_BUY, now)
 
       this.logger.info(
-        `[Auto Order Cycle] Job ${job.jobId} created BUY order ${orderDto.orderId} with amount ${buyAmountOut}`
+        `[Auto Order Cycle] Job ${job.jobId} created BUY order ${orderDto.orderId} with amount ${orderDto.amountOut}`
       )
     }
   }

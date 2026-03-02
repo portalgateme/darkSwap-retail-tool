@@ -32,26 +32,6 @@ export class AgentService {
         const message = `${retailOrder.wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
         const signature = await this.signMessage(message, signer);
 
-        console.log({
-                wallet: retailOrder.wallet,
-                chainId: chainId,
-                assetPairId: retailOrder.assetPairId,
-                orderDirection: retailOrder.orderDirection === OrderDirection.BUY ? 0 : 1,
-                orderType: OrderType.LIMIT,
-                timeInForce: 0,
-                stpMode: 0,
-                price: retailOrder.price,
-                amountOut: swapMessage.orderNote.amount.toString(),
-                amountIn: (swapMessage.inNote.amount + swapMessage.feeAmount).toString(),
-                swapMessage: retailOrder.swapMessage,
-                txHashCreated: retailOrder.txHashCreated,
-                nullifier: swapMessage.orderNullifier,
-            },{
-                'x-wallet-address': retailOrder.wallet.toLowerCase(),
-                'x-wallet-signature': signature,
-                'x-wallet-timestamp': timestamp,
-            })
-
         const response = await axios({
             method: 'post',
             url: `${agentUrl}/orders/create`,
@@ -99,7 +79,7 @@ export class AgentService {
         const swapMessageObj = deserializeDarkSwapMessage(swapMessage);
         const timestamp = new Date().toISOString()
         const message = `${walletAddress.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
-        const signature = await signer.signMessage(message);
+        const signature = await this.signMessage(message, signer);
 
         const response = await axios({
             method: 'post',
@@ -130,6 +110,59 @@ export class AgentService {
         }
         return response.data.data.orderId;
     };
+
+    public async cancelOrder(chainId: number, wallet: string, agentOrderId: string, signer: ethers.Signer): Promise<void> {
+        const agentUrl = this.config.agentUrl;
+
+        const timestamp = new Date().toISOString()
+        const message = `${wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
+        const signature = await this.signMessage(message, signer);
+
+        const response = await axios({
+            method: 'post',
+            url: `${agentUrl}/orders/cancel`,
+            data: {
+                wallet: wallet,
+                chainId: chainId,
+                orderId: agentOrderId,
+            },
+            headers: {
+                'x-wallet-address': wallet.toLowerCase(),
+                'x-wallet-signature': signature,
+                'x-wallet-timestamp': timestamp,
+            },
+        })
+        if (response.status !== 200 && response.status !== 201) {
+            console.log('Cancel order failed', response.data);
+            throw new Error('Cancel order failed');
+        }
+    }
+
+    public async getOrderByTxHash(
+        chainId: number,
+        wallet: string,
+        txHash: string,
+        signer: ethers.Signer
+    ): Promise<string | null> {
+        const agentUrl = this.config.agentUrl;
+        // Sign a message to get the order detail
+        const timestamp = new Date().toISOString()
+        const message = `${wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
+        const signature = await signer.signMessage(message);
+        const response = await axios.get(`${agentUrl}/orders/query`, {
+            params: {
+                chainId,
+                txHash
+            },
+            headers: {
+                'x-wallet-address': wallet.toLowerCase(),
+                'x-wallet-signature': signature,
+                'x-wallet-timestamp': timestamp
+            }
+        });
+        if (response.status !== 200) throw new Error('Get order detail failed');
+        return response?.data?.data?.orderId || null;
+    }
 
     public async getOrderFilledByOrderId(
         chainId: number,

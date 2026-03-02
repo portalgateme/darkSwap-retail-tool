@@ -2,23 +2,11 @@ import { ipcMain } from 'electron'
 import { getCurrentInstance } from '../utils/coreReloader'
 
 export const registerOrderHandlers = () => {
-  ipcMain.handle('order:createOrder', async (event, orderDto) => {
-    const dbInstance = getCurrentInstance()
-    await dbInstance.getRetailOrderManager().createOrder(orderDto)
-    return true
-  })
 
   // cancelOrder
   ipcMain.handle('order:cancelOrder', async (event, cancelOrderDto) => {
     const dbInstance = getCurrentInstance()
     await dbInstance.getRetailOrderManager().cancelOrder(cancelOrderDto)
-    return true
-  })
-
-  // updateOrderPrice
-  ipcMain.handle('order:updateOrderPrice', async (event, updatePriceDto) => {
-    const dbInstance = getCurrentInstance()
-    await dbInstance.getRetailOrderManager().updateOrderPrice(updatePriceDto)
     return true
   })
 

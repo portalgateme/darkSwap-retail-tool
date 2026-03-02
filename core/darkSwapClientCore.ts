@@ -55,8 +55,8 @@ export class DarkSwapClientCore {
       dbService,
       orderEventService,
       this.rpcManager,
-      noteService,
-      agentService
+      agentService,
+      subgraphService
     )
     this.orderRetailManager = new OrderRetailManager(
       orderRetailService,
@@ -77,7 +77,8 @@ export class DarkSwapClientCore {
     this.autoOrderManager = new AutoOrderManager(
       dbService,
       this.orderRetailManager,
-      this.assetManager
+      this.assetManager,
+      orderRetailService
     )
   }
 

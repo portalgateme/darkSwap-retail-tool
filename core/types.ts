@@ -161,7 +161,7 @@ export interface OrderDto extends BaseDto {
 
 export interface OrderRetailDto extends BaseDto {
   id?: number
-  orderId?: string
+  orderId: string
   agentOrderId?: string
   assetPairId: string
   orderDirection: OrderDirection
