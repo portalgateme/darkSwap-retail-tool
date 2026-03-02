@@ -18,6 +18,7 @@ import {
   WithdrawNoteDto
 } from '../types'
 import { SubgraphService } from '../common/subgraph.service'
+import Orders from '../../renderer/pages/history'
 
 const PRICE_DECIMALS = 18
 
@@ -774,14 +775,14 @@ export class AutoOrderManager {
     }
 
     const swapMessage = deserializeDarkSwapMessage(order.swapMessage)
-    if (
-      swapMessage &&
-      swapMessage.inNote &&
-      swapMessage.inNote.amount
-    ) {
-      const decimal = order.orderDirection === OrderDirection.SELL ? assetPair.quoteDecimal : assetPair.baseDecimal
-
-      return ethers.formatUnits(swapMessage.inNote.amount.toString(), decimal)
+    if (swapMessage) {
+      const inDecimal = order.orderDirection === OrderDirection.SELL ? assetPair.quoteDecimal : assetPair.baseDecimal
+      const outDecimal = order.orderDirection === OrderDirection.SELL ? assetPair.baseDecimal : assetPair.quoteDecimal
+      if (order.status == OrderStatus.CANCELLED) {
+        return ethers.formatUnits(swapMessage.orderNote.amount.toString(), outDecimal)
+      } else {
+        return ethers.formatUnits(swapMessage.inNote.amount.toString(), inDecimal)
+      }
     }
 
     return undefined
