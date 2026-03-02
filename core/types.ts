@@ -228,6 +228,7 @@ export interface AutoOrderJobDto extends BaseDto {
   lastOrderId?: string
   createdAt?: Date
   updatedAt?: Date
+  orders?: AutoOrderJobOrderDto[]
 }
 
 export interface AutoOrderJobOrderDto extends BaseDto {

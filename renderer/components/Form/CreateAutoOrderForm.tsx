@@ -16,10 +16,12 @@ import {
   CreateAutoOrderFormData,
   OrderDirection,
   OrderType,
+  PriceType,
   Wallet
 } from '../../types'
 import { AssetPairSelection } from '../Selection/AssetPairSelection'
 import { OrderDirectionSelection } from '../Selection/OrderDirectionSelection'
+import { useState } from 'react'
 
 interface CreateAutoOrderFormProps {
   formData: CreateAutoOrderFormData
@@ -34,12 +36,8 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
   selectedWallet,
   onChangeWallet
 }) => {
+  const [priceType, setPriceType] = useState<PriceType>(PriceType.MARKET)
   const { currentChain, onChangeChain } = useChainContext()
-  const {
-    list,
-    assetPair: selectedPair,
-    onChangeAssetPair
-  } = useAssetPairContext()
 
   const onChangeNumberData = (
     field: keyof CreateAutoOrderFormData,
@@ -227,14 +225,44 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
         spacing={2}
         flexWrap='wrap'
       >
+        <Select
+          value={priceType}
+          onChange={(e) => setPriceType(e.target.value as PriceType)}
+          displayEmpty
+          sx={{
+            minWidth: 160,
+            // background: '#262A33',
+            color: '#F3F4F6',
+            borderRadius: '8px'
+          }}
+          size='small'
+          MenuProps={{
+            PaperProps: {
+              sx: {
+                background: '#1E2128',
+                color: '#F3F4F6'
+              }
+            }
+          }}
+          color='success'
+        >
+          <MenuItem value={PriceType.LIMIT}>Limit</MenuItem>
+          <MenuItem value={PriceType.MARKET}>Market</MenuItem>
+        </Select>
+
         <TextField
-          label='Price'
-          value={formData.price}
-          disabled={formData.orderType === OrderType.MARKET}
+          label={
+            priceType === PriceType.LIMIT
+              ? 'Price'
+              : `Market Price: ${formData.marketPrice || 'N/A'}`
+          }
+          value={priceType === PriceType.LIMIT ? formData.price : ''}
+          disabled={priceType === PriceType.MARKET}
           error={!!validatePrice(formData.price)}
           helperText={validatePrice(formData.price)}
+          focused={priceType === PriceType.LIMIT}
           size='small'
-          required
+          required={priceType === PriceType.LIMIT}
           onChange={(e) => {
             onChangeNumberData('price', e.target.value)
           }}
@@ -242,7 +270,14 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           sx={{ input: { color: '#F3F4F6' }, width: 300 }}
           color='success'
         />
+      </Stack>
 
+      <Stack
+        direction='row'
+        spacing={10}
+        flexWrap='wrap'
+        alignItems={'flex-start'}
+      >
         <TextField
           label='Amount'
           required
@@ -257,6 +292,46 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           sx={{ input: { color: '#F3F4F6' }, minWidth: 300 }}
           color='success'
         />
+
+        <Stack
+          direction='row'
+          spacing={1}
+          alignItems='center'
+        >
+          <Typography color='#BDC1CA'>Max orders per day</Typography>
+          <Select
+            value={formData.maxOrdersPerDay}
+            onChange={(e) =>
+              onChangeNumberData('maxOrdersPerDay', e.target.value)
+            }
+            displayEmpty
+            sx={{
+              minWidth: 160,
+
+              height: 40,
+              // background: '#262A33',
+              color: '#F3F4F6',
+              borderRadius: '8px'
+            }}
+            size='small'
+            color='success'
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  background: '#1E2128',
+                  color: '#F3F4F6'
+                }
+              }
+            }}
+          >
+            <MenuItem value={2}>2</MenuItem>
+            <MenuItem value={5}>5</MenuItem>
+            <MenuItem value={10}>10</MenuItem>
+            <MenuItem value={20}>20</MenuItem>
+            <MenuItem value={50}>50</MenuItem>
+            <MenuItem value={100}>100</MenuItem>
+          </Select>
+        </Stack>
       </Stack>
 
       <Stack

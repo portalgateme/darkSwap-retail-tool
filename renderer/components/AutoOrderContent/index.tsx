@@ -59,7 +59,8 @@ export const AutoOrderContent = () => {
     endAt: '',
     intervalSeconds: '15',
     orderDirection: OrderDirection.SELL,
-    orderType: OrderType.LIMIT
+    orderType: OrderType.LIMIT,
+    maxOrdersPerDay: '10'
   })
 
   const [jobs, setJobs] = useState<AutoOrderJobDto[]>([])
@@ -199,8 +200,10 @@ export const AutoOrderContent = () => {
         10, // TODO: hardcoded limit, need to implement pagination in the future
         SortType.NEWEST,
         undefined, // TODO: hardcoded page, need to implement pagination in the future
-        undefined // TODO: hardcoded page, need to implement pagination in the future
+        undefined, // TODO: hardcoded page, need to implement pagination in the future
+        true // includeOrders, set to true to fetch orders for each job
       )
+      console.log('Fetched auto order jobs', result)
       setJobs(result.jobs || [])
       setTotalJobs(result.total || 0)
     } catch (error) {

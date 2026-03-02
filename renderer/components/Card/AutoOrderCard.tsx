@@ -25,6 +25,8 @@ export const AutoOrderCard = ({
 }: AutoOrderCardProps) => {
   const { list } = useAssetPairContext()
 
+  console.log('Rendering AutoOrderCard for job:', job)
+
   const getPairLabel = (assetPairId: string) => {
     const pair = list.find((p) => p.id === assetPairId)
     return pair ? `${pair.baseSymbol}/${pair.quoteSymbol}` : assetPairId
@@ -34,6 +36,21 @@ export const AutoOrderCard = ({
     const pair = list.find((p) => p.id === assetPairId)
     return pair ? pair.quoteSymbol : ''
   }
+
+  const ordersCreatedToday = job.orders
+    ? job.orders.filter((o) => {
+        const createdAt = new Date(o.createdAt)
+        const today = new Date()
+        return (
+          createdAt.getDate() === today.getDate() &&
+          createdAt.getMonth() === today.getMonth() &&
+          createdAt.getFullYear() === today.getFullYear()
+        )
+      }).length
+    : 0
+
+  const ordersCreatedLifetime = job.orders ? job.orders.length : 0
+
   return (
     <Paper
       key={job.jobId}
@@ -124,6 +141,39 @@ export const AutoOrderCard = ({
         >
           Price: {job.orderType === OrderType.MARKET ? 'Market' : job.price}
         </Typography>
+
+        <Stack
+          direction='row'
+          spacing={1}
+          alignItems='center'
+        >
+          <Typography
+            variant='caption'
+            color='#9CA3AF'
+          >
+            Orders created:
+          </Typography>
+          <Typography
+            variant='caption'
+            color='#9CA3AF'
+          >
+            Today {ordersCreatedToday}
+          </Typography>
+          <Box
+            sx={{
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              background: '#6B7280'
+            }}
+          />
+          <Typography
+            variant='caption'
+            color='#9CA3AF'
+          >
+            Lifetime {ordersCreatedLifetime}
+          </Typography>
+        </Stack>
 
         <Stack
           direction='row'

@@ -79,7 +79,8 @@ export enum OrderStatus {
   SETTLED = 3,
   CANCELLED = 4,
   NOT_TRIGGERED = 5,
-  TRIGGERED = 6
+  TRIGGERED = 6,
+  WITHDRAWN = 7
 }
 
 export enum AutoOrderJobStatus {
@@ -115,6 +116,7 @@ export interface AutoOrderJobDto {
   status?: AutoOrderJobStatus
   activeOrderId?: string | null
   lastRunAt?: number | null
+  orders?: OrderEventDto[]
 }
 
 export enum SortType {
@@ -134,6 +136,7 @@ export interface CreateAutoOrderFormData {
   intervalSeconds: string
   orderDirection: OrderDirection
   orderType: OrderType
+  maxOrdersPerDay: string
 }
 
 export interface EditAutoOrderFormData {
@@ -195,4 +198,9 @@ export interface AssetDto {
 export interface MyAssetsDto {
   chainId: number
   assets: AssetDto[]
+}
+
+export enum PriceType {
+  MARKET = 'Market Price',
+  LIMIT = 'Limit Price'
 }
