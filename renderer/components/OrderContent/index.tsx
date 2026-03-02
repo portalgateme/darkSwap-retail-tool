@@ -155,9 +155,7 @@ export const OrderContent = () => {
         ? assetPair.baseDecimal
         : assetPair.quoteDecimal
     const result = ethers.formatUnits(row.amountOut, decimalOut)
-    return new Intl.NumberFormat('en-US', {
-      maximumFractionDigits: 5
-    }).format(parseFloat(result)) // Just show maximum 5 decimal places
+    return result
   }
 
   const formatAmountIn = (row: OrderDto) => {
