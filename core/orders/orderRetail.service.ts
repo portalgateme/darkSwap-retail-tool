@@ -73,8 +73,10 @@ export class OrderRetailService {
     if (!agentOrderIdFromAgent) {
       const orderRetailDto: OrderRetailDto = {
         ...orderDto,
+        txHashCreated: txHash,
         swapMessage: serializeDarkSwapMessage(swapMessage)
       }
+      console.log('orderRetailDto', orderRetailDto)
       agentOrderIdFromAgent = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
 
     }
@@ -196,20 +198,15 @@ export class OrderRetailService {
       )
       context = result.context
       swapMessage = result.swapMessage
+      orderDto.status = OrderStatus.OPEN
+      orderDto.noteCommitment = swapMessage.orderNote.note.toString()
+      orderDto.nullifier = swapMessage.orderNullifier.toString()
+      orderDto.feeRatio = swapMessage.orderNote.feeRatio.toString()
+      orderDto.publicKey = darkSwapContext.publicKey
+      orderDto.swapMessage = serializeDarkSwapMessage(swapMessage)
+
+      await this.dbService.addRetailOrderByDto(orderDto)
     }
-
-    orderDto.status = OrderStatus.OPEN
-    orderDto.noteCommitment = swapMessage.orderNote.note.toString()
-    orderDto.nullifier = swapMessage.orderNullifier.toString()
-    orderDto.feeRatio = swapMessage.orderNote.feeRatio.toString()
-    orderDto.publicKey = darkSwapContext.publicKey
-
-    const orderRetailDto: OrderRetailDto = {
-      ...orderDto,
-      swapMessage: serializeDarkSwapMessage(swapMessage)
-    }
-
-    const orderPkId = await this.dbService.addRetailOrderByDto(orderRetailDto)
 
     const tx = await retailCreateOrderService.execute(context)
     const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
@@ -227,7 +224,7 @@ export class OrderRetailService {
 
     await this.submitOrderToAgent(
       tx,
-      orderRetailDto,
+      orderDto,
       swapMessage,
       darkSwapContext
     )
