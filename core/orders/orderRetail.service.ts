@@ -381,50 +381,6 @@ export class OrderRetailService {
           console.log(
             `Updated order ${order.orderId} status: ${order.status} -> ${OrderStatus.SETTLED}`
           )
-
-          const swapMessage = deserializeDarkSwapMessage(order.swapMessage!)
-          const nullifier = calcNullifier(
-            swapMessage.inNote.rho,
-            swapMessage.publicKey
-          )
-
-          // Check if withdraw tx already exists
-          console.log(
-            `Checking withdraw tx for order ${order.orderId} with nullifier ${nullifier}...`
-          )
-          const withdrawTx = await this.subgraphService.getWithdrawTxByNote(
-            order.chainId,
-            hexlify32(nullifier)
-          )
-          if (!withdrawTx) {
-            console.log(
-              `No withdraw tx found for order ${order.orderId}, submitting withdraw...`
-            )
-            const withdrawNoteDto: WithdrawNoteDto = {
-              chainId: order.chainId,
-              wallet: order.wallet,
-              note: swapMessage.inNote
-            }
-
-            await this.assetManager.withdrawNote(withdrawNoteDto)
-          }
-
-          // Mark orders to WITHDRAWN status
-          console.log(`Marking order ${order.orderId} as withdrawn...`)
-          await this.dbService.updateRetailOrderStatus(
-            order.orderId,
-            OrderStatus.WITHDRAWN
-          )
-
-          console.log(
-            `Updated order ${order.orderId} status: ${OrderStatus.SETTLED} -> ${OrderStatus.WITHDRAWN}`
-          )
-          await this.orderEventService.logOrderStatusChange(
-            order.orderId!,
-            order.wallet,
-            order.chainId,
-            OrderStatus.WITHDRAWN
-          )
         }
       } catch (error) {
         console.error(`Error syncing status for order ${order.orderId}:`, error)

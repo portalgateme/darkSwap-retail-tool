@@ -63,7 +63,8 @@ export enum AutoOrderJobStatus {
   ACTIVE = 0,
   PAUSED = 1,
   COMPLETED = 2,
-  CANCELLED = 3
+  CANCELLED = 3,
+  PRE_CANCELLED = 4
 }
 
 export enum AutoOrderCycleState {
