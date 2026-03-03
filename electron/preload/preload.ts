@@ -131,7 +131,8 @@ contextBridge.exposeInMainWorld('autoOrderAPI', {
     limit: number,
     sort: string,
     status?: number,
-    search?: string
+    search?: string,
+    includeOrders = false
   ) =>
     ipcRenderer.invoke(
       'autoOrder:getJobsByPage',
@@ -140,7 +141,8 @@ contextBridge.exposeInMainWorld('autoOrderAPI', {
       limit,
       sort,
       status,
-      search
+      search,
+      includeOrders
     )
 })
 

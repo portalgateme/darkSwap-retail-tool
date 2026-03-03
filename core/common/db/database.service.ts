@@ -61,6 +61,8 @@ interface AutoOrderJobEntity {
   lastRunAt?: number
   createdAt: Date
   updatedAt: Date
+  orders?: AutoOrderJobOrderEntity[]
+  maxOrdersPerDay: number
 }
 
 interface AutoOrderJobOrderEntity {
@@ -964,8 +966,8 @@ export class DatabaseService {
     const query = `INSERT INTO AUTO_ORDER_JOBS (
       jobId, chainId, wallet, assetPairId, orderDirection, orderType,
       timeInForce, stpMode, price, marketPrice, minPrice, maxPrice, amountOut, feeRatio,
-      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId, errorMessage
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId, errorMessage, maxOrdersPerDay
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
     const stmt = this.db.prepare(query)
     stmt.run(
@@ -993,7 +995,8 @@ export class DatabaseService {
       job.startDirection ?? job.orderDirection,
       job.lastReceivedAmount ?? '0',
       job.lastOrderId ?? null,
-      job.errorMessage ?? null
+      job.errorMessage ?? null,
+      job.maxOrdersPerDay
     )
   }
 
@@ -1035,7 +1038,8 @@ export class DatabaseService {
       lastOrderId: row.lastOrderId,
       errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }
   }
 
@@ -1074,7 +1078,8 @@ export class DatabaseService {
       lastOrderId: row.lastOrderId,
       errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }))
   }
 
@@ -1097,10 +1102,7 @@ export class DatabaseService {
     stmt.run(activeOrderId, lastRunAt ?? null, jobId)
   }
 
-  public async updateAutoOrderJobLastOrder(
-    jobId: string,
-    lastOrderId: string
-  ) {
+  public async updateAutoOrderJobLastOrder(jobId: string, lastOrderId: string) {
     const query = `UPDATE AUTO_ORDER_JOBS SET lastOrderId = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
     const stmt = this.db.prepare(query)
     stmt.run(lastOrderId, jobId)
@@ -1184,7 +1186,8 @@ export class DatabaseService {
     limit: number,
     sort: string,
     status?: number,
-    search?: string
+    search?: string,
+    includeOrders = false
   ): Promise<{ jobs: AutoOrderJobDto[]; total: number }> {
     const offset = (page - 1) * limit
     const params: any[] = [chainId]
@@ -1219,6 +1222,16 @@ export class DatabaseService {
     const stmt = this.db.prepare(query)
     const rows = stmt.all(...params) as AutoOrderJobEntity[]
 
+    if (includeOrders) {
+      for (const row of rows) {
+        if (row.jobId) {
+          const orders = await this.getAutoOrderJobOrdersByJobId(row.jobId)
+          ;(row as any).orders = orders
+          console.log(`Fetched orders for job ${row.jobId}:`, orders)
+        }
+      }
+    }
+
     const jobs = rows.map((row) => ({
       id: row.id,
       jobId: row.jobId,
@@ -1247,8 +1260,12 @@ export class DatabaseService {
       lastOrderId: row.lastOrderId,
       errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      orders: row.orders,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }))
+
+    console.log('Fetched auto order jobs with orders:', jobs)
 
     return { jobs, total }
   }

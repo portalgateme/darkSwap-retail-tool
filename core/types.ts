@@ -223,6 +223,8 @@ export interface AutoOrderJobDto extends BaseDto {
   errorMessage?: string
   createdAt?: Date
   updatedAt?: Date
+  orders?: AutoOrderJobOrderDto[]
+  maxOrdersPerDay: number
 }
 
 export interface AutoOrderJobOrderDto extends BaseDto {

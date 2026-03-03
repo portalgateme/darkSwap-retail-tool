@@ -54,8 +54,6 @@ export const AutoOrderDetailModal = ({
     accounts.find((acc) => isSameAddress(acc.address, selectedJob?.wallet))
       ?.name || 'Unknown Wallet'
 
-  console.log('Selected Job:', editForm)
-
   return (
     <Dialog
       open={detailOpen}
