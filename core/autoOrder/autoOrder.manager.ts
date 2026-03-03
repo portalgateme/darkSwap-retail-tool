@@ -301,8 +301,16 @@ export class AutoOrderManager {
           }
 
           await this.processCycleState(job, cycleState, now)
+
+          if (job.errorMessage) {
+            await this.dbService.updateAutoOrderJobErrorMessage(job.jobId, null)
+          }
         } catch (error) {
           this.logger.error(`Auto order job failed: ${job.jobId}`, error)
+          await this.dbService.updateAutoOrderJobErrorMessage(
+            job.jobId,
+            error instanceof Error ? error.message : String(error)
+          )
           await this.pauseJob(job.jobId)
         }
       }
