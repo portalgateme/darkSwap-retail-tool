@@ -558,6 +558,12 @@ export class AutoOrderManager {
 
       await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
 
+      // Mark orders to WITHDRAWN status
+      await this.dbService.updateRetailOrderStatus(
+        order.orderId,
+        OrderStatus.WITHDRAWN
+      )
+
       // Save received amount for next order
       job.lastReceivedAmount = order.amountIn
       await this.updateCycleStateWithAmount(
