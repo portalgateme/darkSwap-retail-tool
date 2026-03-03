@@ -1227,7 +1227,6 @@ export class DatabaseService {
         if (row.jobId) {
           const orders = await this.getAutoOrderJobOrdersByJobId(row.jobId)
           ;(row as any).orders = orders
-          console.log(`Fetched orders for job ${row.jobId}:`, orders)
         }
       }
     }
@@ -1264,9 +1263,7 @@ export class DatabaseService {
       orders: row.orders,
       maxOrdersPerDay: row.maxOrdersPerDay
     }))
-
-    console.log('Fetched auto order jobs with orders:', jobs)
-
+    
     return { jobs, total }
   }
 

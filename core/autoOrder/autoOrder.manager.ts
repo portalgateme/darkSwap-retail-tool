@@ -23,6 +23,8 @@ import {
 } from '../types'
 import { SubgraphService } from '../common/subgraph.service'
 import Orders from '../../renderer/pages/history'
+import { getMarketPriceFromBinance } from '../../renderer/services/orderService'
+import { OrderEventService } from '../orders/orderEvent.service'
 
 const PRICE_DECIMALS = 18
 
@@ -32,6 +34,7 @@ export class AutoOrderManager {
   private assetManager: AssetManager
   private orderRetailManager: OrderRetailManager
   private orderRetailService: OrderRetailService
+  private orderEventService: OrderEventService
   private subgraphService: SubgraphService
   private intervalTimer?: NodeJS.Timeout
   private isTicking = false
@@ -42,13 +45,15 @@ export class AutoOrderManager {
     orderRetailManager: OrderRetailManager,
     assetManager: AssetManager,
     orderRetailService: OrderRetailService,
-    subgraphService: SubgraphService
+    subgraphService: SubgraphService,
+    orderEventService: OrderEventService
   ) {
     this.dbService = dbService
     this.orderRetailManager = orderRetailManager
     this.assetManager = assetManager
     this.orderRetailService = orderRetailService
     this.subgraphService = subgraphService
+    this.orderEventService = orderEventService
   }
 
   public start(intervalSeconds: number = this.defaultIntervalSeconds) {
@@ -80,16 +85,6 @@ export class AutoOrderManager {
 
     if (job.endAt && job.endAt <= job.startAt) {
       throw new Error('endAt must be greater than startAt')
-    }
-
-    const minPrice = Number(job.minPrice)
-    const maxPrice = Number(job.maxPrice)
-    if (isNaN(minPrice) || isNaN(maxPrice) || minPrice <= 0 || maxPrice <= 0) {
-      throw new Error('minPrice and maxPrice must be valid numbers')
-    }
-
-    if (minPrice > maxPrice) {
-      throw new Error('minPrice must be less than or equal to maxPrice')
     }
 
     if (job.orderType === OrderType.LIMIT) {
@@ -161,16 +156,6 @@ export class AutoOrderManager {
 
     if (merged.endAt && merged.endAt <= merged.startAt) {
       throw new Error('endAt must be greater than startAt')
-    }
-
-    const minPrice = Number(merged.minPrice)
-    const maxPrice = Number(merged.maxPrice)
-    if (isNaN(minPrice) || isNaN(maxPrice) || minPrice <= 0 || maxPrice <= 0) {
-      throw new Error('minPrice and maxPrice must be valid numbers')
-    }
-
-    if (minPrice > maxPrice) {
-      throw new Error('minPrice must be less than or equal to maxPrice')
     }
 
     if (
@@ -292,7 +277,11 @@ export class AutoOrderManager {
           const ordersCreatedToday =
             await this.dbService.getAutoOrderJobOrdersByJobId(job.jobId)
 
-          if (ordersCreatedToday.length >= job.maxOrdersPerDay) {
+          if (
+            (job.cycleState === AutoOrderCycleState.CREATE_SELL ||
+              job.cycleState === AutoOrderCycleState.CREATE_BUY) &&
+            ordersCreatedToday.length >= job.maxOrdersPerDay
+          ) {
             this.logger.info(
               `Job ${job.jobId} has reached max orders per day limit (${job.maxOrdersPerDay}), skipping until next day`
             )
@@ -573,6 +562,13 @@ export class AutoOrderManager {
         now
       )
 
+      await this.orderEventService.logOrderStatusChange(
+        order.orderId!,
+        order.wallet,
+        order.chainId,
+        OrderStatus.WITHDRAWN
+      )
+
       this.logger.info(
         `[Auto Order Cycle] Job ${job.jobId} withdrawn SELL proceeds from ${order.orderId}, received ${order.amountIn}`
       )
@@ -746,33 +742,24 @@ export class AutoOrderManager {
   }
 
   private async getOrderPrice(job: AutoOrderJobDto): Promise<string | null> {
-    const marketPriceStr = job.marketPrice
-      ? this.normalizePrice(job.marketPrice, PRICE_DECIMALS)
-      : null
+    const assetPair = await this.dbService.getAssetPairById(
+      job.assetPairId,
+      job.chainId
+    )
+    if (!assetPair) {
+      this.logger.warn(`Asset pair not found for job ${job.jobId}`)
+      return null
+    }
+
+    const marketPriceStr = await getMarketPriceFromBinance(
+      assetPair.baseSymbol + assetPair.quoteSymbol
+    )
 
     if (!marketPriceStr || Number(marketPriceStr) <= 0) {
       return null
     }
 
-    const price = Number(marketPriceStr)
-    const minPrice = Number(job.minPrice)
-    const maxPrice = Number(job.maxPrice)
-
-    if (price < minPrice || price > maxPrice) {
-      return null
-    }
-
-    const orderPrice =
-      job.orderType === OrderType.MARKET
-        ? marketPriceStr
-        : this.normalizePrice(job.price, PRICE_DECIMALS)
-
-    if (!orderPrice || Number(orderPrice) <= 0) {
-      this.logger.warn(`Invalid order price for job ${job.jobId}`)
-      return null
-    }
-
-    return orderPrice
+    return this.normalizePrice(marketPriceStr, PRICE_DECIMALS)
   }
 
   private async getAmountFromLastOrder(

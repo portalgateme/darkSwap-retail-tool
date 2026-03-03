@@ -80,7 +80,8 @@ export class DarkSwapClientCore {
       this.orderRetailManager,
       this.assetManager,
       orderRetailService,
-      subgraphService
+      subgraphService,
+      orderEventService
     )
   }
 
