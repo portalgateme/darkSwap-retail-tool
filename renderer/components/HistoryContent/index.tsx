@@ -36,12 +36,9 @@ import CheckIcon from '@mui/icons-material/Check'
 
 const listStatuses = new Array<OrderStatus>(
   OrderStatus.OPEN,
-  OrderStatus.MATCHED,
   OrderStatus.CANCELLED,
   OrderStatus.SETTLED,
-  OrderStatus.NOT_TRIGGERED,
-  OrderStatus.TRIGGERED,
-  OrderStatus.BOB_CONFIRMED
+  OrderStatus.WITHDRAWN
 )
 
 export const HistoryContent = () => {
