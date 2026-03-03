@@ -1044,11 +1044,11 @@ export class DatabaseService {
   }
 
   public async getAutoOrderJobsByStatus(
-    status: AutoOrderJobStatus
+    statuses: AutoOrderJobStatus[]
   ): Promise<AutoOrderJobDto[]> {
-    const query = `SELECT * FROM AUTO_ORDER_JOBS WHERE status = ?`
+    const query = `SELECT * FROM AUTO_ORDER_JOBS WHERE status IN (${statuses.map(() => '?').join(',')})`
     const stmt = this.db.prepare(query)
-    const rows = stmt.all(status) as AutoOrderJobEntity[]
+    const rows = stmt.all(...statuses) as AutoOrderJobEntity[]
 
     return rows.map((row) => ({
       id: row.id,
@@ -1263,7 +1263,7 @@ export class DatabaseService {
       orders: row.orders,
       maxOrdersPerDay: row.maxOrdersPerDay
     }))
-    
+
     return { jobs, total }
   }
 

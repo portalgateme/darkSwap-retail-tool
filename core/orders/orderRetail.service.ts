@@ -1,4 +1,5 @@
 import {
+  calcNullifier,
   DarkSwapError,
   DarkSwapMessage,
   DarkSwapOrderNote,
@@ -22,12 +23,14 @@ import {
   OrderDto,
   OrderNoteStatus,
   OrderRetailDto,
-  OrderStatus
+  OrderStatus,
+  WithdrawNoteDto
 } from '../types'
 import { getBalance } from '../utils/getBalance'
 import { checkPrice } from '../utils/priceUtil'
 import { OrderEventService } from './orderEvent.service'
 import { NoteService } from '../common/note.service'
+import { AssetManager } from '../assetManagement'
 
 export class OrderRetailService {
   private readonly logger = new Logger({ name: OrderRetailService.name })
@@ -38,6 +41,7 @@ export class OrderRetailService {
   private agentService: AgentService
   private subgraphService: SubgraphService
   private noteService: NoteService
+  private assetManager: AssetManager
 
   public constructor(
     dbService: DatabaseService,
@@ -45,7 +49,8 @@ export class OrderRetailService {
     rpcManager: RpcManager,
     agentService: AgentService,
     subgraphService: SubgraphService,
-    noteService: NoteService
+    noteService: NoteService,
+    assetManager: AssetManager
   ) {
     this.dbService = dbService
     this.rpcManager = rpcManager
@@ -53,14 +58,15 @@ export class OrderRetailService {
     this.agentService = agentService
     this.subgraphService = subgraphService
     this.noteService = noteService
+    this.assetManager = assetManager
   }
 
   private async submitOrderToAgent(
     txHash: string,
     orderDto: OrderRetailDto,
     swapMessage: DarkSwapMessage,
-    darkSwapContext: DarkSwapContext) {
-
+    darkSwapContext: DarkSwapContext
+  ) {
     if (orderDto.agentOrderId) {
       return
     }
@@ -78,8 +84,11 @@ export class OrderRetailService {
         txHashCreated: txHash,
         swapMessage: serializeDarkSwapMessage(swapMessage)
       }
-      agentOrderIdFromAgent = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
-
+      agentOrderIdFromAgent = await this.agentService.submitOrder(
+        orderRetailDto.chainId,
+        orderRetailDto,
+        darkSwapContext.signer
+      )
     }
 
     await this.dbService.updateAgentOrderIdOfRetailOrderById(
@@ -95,8 +104,10 @@ export class OrderRetailService {
     )
 
     this.logger.info(
-      `Order created: ${orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
-      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${orderDto.amountOut
+      `Order created: ${
+        orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
+      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${
+        orderDto.amountOut
       } IN: ${orderDto.amountIn}`
     )
   }
@@ -133,7 +144,10 @@ export class OrderRetailService {
         )
         return
       } else {
-        context = await retailCreateOrderService.rebuildContextFromSwapMessage(swapMessage, darkSwapContext.signature)
+        context = await retailCreateOrderService.rebuildContextFromSwapMessage(
+          swapMessage,
+          darkSwapContext.signature
+        )
       }
     } else {
       const assetPair = await this.dbService.getAssetPairById(
@@ -214,32 +228,19 @@ export class OrderRetailService {
       throw new DarkSwapError('Order creation failed')
     }
 
-    await this.dbService.updateTxCreatedRetailOrderById(
-      orderDto.orderId!,
-      tx
-    )
+    await this.dbService.updateTxCreatedRetailOrderById(orderDto.orderId!, tx)
 
-    await this.submitOrderToAgent(
-      tx,
-      orderDto,
-      swapMessage,
-      darkSwapContext
-    )
+    await this.submitOrderToAgent(tx, orderDto, swapMessage, darkSwapContext)
   }
 
   // Method to cancel an order
-  async cancelOrder(
-    orderId: string,
-    darkSwapContext: DarkSwapContext
-  ) {
+  async cancelOrder(orderId: string, darkSwapContext: DarkSwapContext) {
     const order = await this.dbService.getRetailOrderByOrderId(orderId)
     if (!order) {
       throw new DarkSwapError('Order not found')
     }
 
-    if (
-      order.status !== OrderStatus.OPEN
-    ) {
+    if (order.status !== OrderStatus.OPEN) {
       throw new DarkSwapError('Order is not cancellable')
     }
 
@@ -251,7 +252,6 @@ export class OrderRetailService {
     )
 
     if (!cancelTx) {
-
       const noteStatus = await this.noteService.checkNoteByPubkey(
         swapMessage.orderNote,
         order.publicKey!,
@@ -273,10 +273,11 @@ export class OrderRetailService {
       )
 
       const tx = await retailCancelOrderService.execute(context)
-      const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
-        tx,
-        getConfirmations(darkSwapContext.chainId)
-      )
+      const receipt =
+        await darkSwapContext.darkSwap.provider.waitForTransaction(
+          tx,
+          getConfirmations(darkSwapContext.chainId)
+        )
       if (receipt && receipt.status !== 1) {
         throw new DarkSwapError('Order cancellation failed')
       }
@@ -343,7 +344,11 @@ export class OrderRetailService {
 
     for (const order of activeOrders) {
       try {
-        if (!order.agentOrderId || order.agentOrderId === '' || !order.orderId) {
+        if (
+          !order.agentOrderId ||
+          order.agentOrderId === '' ||
+          !order.orderId
+        ) {
           continue
         }
 
@@ -359,9 +364,7 @@ export class OrderRetailService {
           order.wallet,
           context.signer
         )
-        console.log(
-          `Order ${order.orderId} filled: ${orderFilled}`
-        )
+        console.log(`Order ${order.orderId} filled: ${orderFilled}`)
 
         // Update if status changed
         if (orderFilled) {
@@ -384,5 +387,4 @@ export class OrderRetailService {
       }
     }
   }
-
 }

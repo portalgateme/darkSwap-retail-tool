@@ -194,7 +194,7 @@ export class AutoOrderManager {
   public async cancelJob(jobId: string) {
     await this.dbService.updateAutoOrderJobStatus(
       jobId,
-      AutoOrderJobStatus.CANCELLED
+      AutoOrderJobStatus.PRE_CANCELLED
     )
   }
 
@@ -241,9 +241,10 @@ export class AutoOrderManager {
 
     this.isTicking = true
     try {
-      const jobs = await this.dbService.getAutoOrderJobsByStatus(
-        AutoOrderJobStatus.ACTIVE
-      )
+      const jobs = await this.dbService.getAutoOrderJobsByStatus([
+        AutoOrderJobStatus.ACTIVE,
+        AutoOrderJobStatus.PRE_CANCELLED
+      ])
 
       if (!jobs.length) return
 
@@ -370,6 +371,15 @@ export class AutoOrderManager {
         AutoOrderCycleState.CREATE_BUY,
         now
       )
+      return
+    }
+
+    if (job.status === AutoOrderJobStatus.PRE_CANCELLED && !job.activeOrderId) {
+      await this.dbService.updateAutoOrderJobStatus(
+        job.jobId,
+        AutoOrderJobStatus.CANCELLED
+      )
+      this.logger.info(`Job ${job.jobId} marked as cancelled`)
       return
     }
 
@@ -569,6 +579,13 @@ export class AutoOrderManager {
         OrderStatus.WITHDRAWN
       )
 
+      if (job.status === AutoOrderJobStatus.PRE_CANCELLED) {
+        await this.dbService.updateAutoOrderJobStatus(
+          job.jobId,
+          AutoOrderJobStatus.CANCELLED
+        )
+      }
+
       this.logger.info(
         `[Auto Order Cycle] Job ${job.jobId} withdrawn SELL proceeds from ${order.orderId}, received ${order.amountIn}`
       )
@@ -580,6 +597,14 @@ export class AutoOrderManager {
     assetPair: any,
     now: number
   ) {
+    if (job.status === AutoOrderJobStatus.PRE_CANCELLED && !job.activeOrderId) {
+      await this.dbService.updateAutoOrderJobStatus(
+        job.jobId,
+        AutoOrderJobStatus.CANCELLED
+      )
+      this.logger.info(`Job ${job.jobId} marked as cancelled`)
+      return
+    }
     if (job.orderDirection === OrderDirection.SELL) {
       // Need to flip direction for buy order
       const tempJob = { ...job, orderDirection: OrderDirection.BUY }

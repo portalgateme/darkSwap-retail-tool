@@ -37,7 +37,7 @@ export class DarkSwapClientCore {
     const orderEventService = new OrderEventService(dbService)
     const subgraphService = SubgraphService.getInstance()
     const agentService = new AgentService(config)
-    
+
     this.assetPairService = new AssetPairService(dbService, agentService)
     const walletMutexService = WalletMutexService.getInstance()
     const orderService = new OrderService(
@@ -47,34 +47,36 @@ export class DarkSwapClientCore {
       this.rpcManager
     )
     const accountService = new AccountService(config, dbService)
-    const basicService = new BasicService(
-      dbService,
-      noteService
-    )
-    const orderRetailService = new OrderRetailService(
-      dbService,
-      orderEventService,
-      this.rpcManager,
-      agentService,
-      subgraphService,
-      noteService
-    )
-    this.orderRetailManager = new OrderRetailManager(
-      orderRetailService,
-      orderEventService,
-      this.rpcManager
-    )
+    const basicService = new BasicService(dbService, noteService)
 
     this.assetManager = new AssetManager(
       accountService,
       basicService,
       this.rpcManager
     )
+
+    const orderRetailService = new OrderRetailService(
+      dbService,
+      orderEventService,
+      this.rpcManager,
+      agentService,
+      subgraphService,
+      noteService,
+      this.assetManager
+    )
+
+    this.orderRetailManager = new OrderRetailManager(
+      orderRetailService,
+      orderEventService,
+      this.rpcManager
+    )
+
     this.orderManager = new OrderManager(
       orderService,
       orderEventService,
       this.rpcManager
     )
+
     this.autoOrderManager = new AutoOrderManager(
       dbService,
       this.orderRetailManager,
