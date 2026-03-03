@@ -21,6 +21,8 @@ import { AutoOrdersTable } from '../Table/AutoOrdersTable'
 import { AutoOrderDetailModal } from '../Modal/AutoOrderDetailModal'
 import { CreateAutoOrderModal } from '../Modal/CreateAutoOrderModal'
 import { toLocalDateTimeInput } from '../../utils/format'
+import { useTokenBalance } from '../../hooks/useTokenBalance'
+import { ethers } from 'ethers'
 
 export const formatDate = (value?: number | null) => {
   if (!value) return '-'
@@ -47,6 +49,7 @@ export const AutoOrderContent = () => {
   const { selectedAccount } = useAccountContext()
   const { list, assetPair } = useAssetPairContext()
   const { showError, showLoading, hideToast, showSuccess } = useToast()
+  const { getBalance } = useTokenBalance()
 
   const [formData, setFormData] = useState<CreateAutoOrderFormData>({
     price: '',
@@ -66,6 +69,7 @@ export const AutoOrderContent = () => {
   const [jobs, setJobs] = useState<AutoOrderJobDto[]>([])
   const [totalJobs, setTotalJobs] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [balance, setBalance] = useState('0')
 
   const [detailOpen, setDetailOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -123,6 +127,45 @@ export const AutoOrderContent = () => {
     }
     run()
   }, [selectedPair, createOpen])
+
+  // Get balance by asset pair change, order direction change, or wallet change
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!selectedWallet || !selectedPair || !chainId) {
+        setBalance('0')
+        return
+      }
+      try {
+        const tokenAddress =
+          formData.orderDirection === OrderDirection.BUY
+            ? selectedPair.quoteAddress
+            : selectedPair.baseAddress
+        const balance = await getBalance(
+          chainId,
+          selectedWallet.address,
+          tokenAddress
+        )
+        const formattedBalance = ethers.formatUnits(
+          balance,
+          formData.orderDirection === OrderDirection.BUY
+            ? selectedPair.quoteDecimal
+            : selectedPair.baseDecimal
+        )
+        setBalance(formattedBalance)
+      } catch (error) {
+        console.error('Failed to fetch balance', error)
+        setBalance('0')
+      }
+    }
+    fetchBalance()
+  }, [
+    selectedWallet,
+    selectedPair,
+    formData.orderDirection,
+    formData.amountOut,
+    formData.orderType,
+    chainId
+  ])
 
   // useEffect(() => {
   //   if (!editForm.assetPairId) return
@@ -183,9 +226,11 @@ export const AutoOrderContent = () => {
       Number(formData.intervalSeconds) > 0 &&
       (formData.endAt && formData.startAt
         ? Number(formData.endAt) > Number(formData.startAt)
-        : true)
+        : true) &&
+      Number(formData.amountOut) > 0 &&
+      Number(formData.amountOut) <= Number(balance)
     )
-  }, [chainId, selectedWallet, selectedPair, formData])
+  }, [chainId, selectedWallet, selectedPair, formData, balance])
 
   const fetchJobs = async () => {
     if (!chainId) return
@@ -527,6 +572,7 @@ export const AutoOrderContent = () => {
         onChangeData={onChangeData}
         selectedWallet={selectedWallet || undefined}
         onChangeWallet={(wallet) => setSelectedWallet(wallet)}
+        balance={balance}
       />
     </Stack>
   )

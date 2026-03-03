@@ -118,6 +118,7 @@ export interface AutoOrderJobDto {
   lastRunAt?: number | null
   orders?: OrderEventDto[]
   maxOrdersPerDay: number
+  errorMessage?: string
 }
 
 export enum SortType {

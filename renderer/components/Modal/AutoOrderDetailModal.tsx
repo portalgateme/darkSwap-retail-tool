@@ -134,7 +134,7 @@ export const AutoOrderDetailModal = ({
                       borderColor: 'white'
                     }
                   }}
-                  readOnly={!editMode}
+                  readOnly
                 >
                   {list.map((pair) => (
                     <MenuItem
@@ -176,7 +176,7 @@ export const AutoOrderDetailModal = ({
                       borderColor: 'white'
                     }
                   }}
-                  readOnly={!editMode}
+                  readOnly
                   MenuProps={{
                     PaperProps: {
                       sx: {

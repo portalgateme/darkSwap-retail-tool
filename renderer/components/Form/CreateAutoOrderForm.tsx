@@ -1,18 +1,8 @@
-import {
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Typography
-} from '@mui/material'
+import { MenuItem, Select, Stack, TextField, Typography } from '@mui/material'
 
 import { useState } from 'react'
 import { useChainContext } from '../../contexts/ChainContext/hooks'
-import {
-  CreateAutoOrderFormData,
-  PriceType,
-  Wallet
-} from '../../types'
+import { CreateAutoOrderFormData, PriceType, Wallet } from '../../types'
 import AccountSelection from '../Selection/AccountSelection'
 import { AssetPairSelection } from '../Selection/AssetPairSelection'
 import NetworkSelection from '../Selection/NetworkSelection'
@@ -23,13 +13,15 @@ interface CreateAutoOrderFormProps {
   onChangeData: (data: Partial<CreateAutoOrderFormData>) => void
   selectedWallet?: Wallet
   onChangeWallet: (wallet: Wallet) => void
+  balance?: string
 }
 
 export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
   formData,
   onChangeData,
   selectedWallet,
-  onChangeWallet
+  onChangeWallet,
+  balance
 }) => {
   const [priceType, setPriceType] = useState<PriceType>(PriceType.MARKET)
   const { currentChain, onChangeChain } = useChainContext()
@@ -69,11 +61,20 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
     return null
   }
 
+  console.log('Balance:', balance)
+
   const validateAmount = (amount: string): string | null => {
     if (!amount) return 'Amount is required'
     const amountNum = parseFloat(amount)
     if (amountNum <= 0) {
       return 'Amount must be greater than 0'
+    }
+
+    if (balance) {
+      const balanceNum = parseFloat(balance)
+      if (amountNum > balanceNum) {
+        return 'Amount exceeds balance'
+      }
     }
     return null
   }
@@ -170,13 +171,6 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           sx={{ input: { color: '#F3F4F6' }, minWidth: 160 }}
         /> */}
       {/* </Stack> */}
-
-      <Stack
-        direction='row'
-        spacing={2}
-        flexWrap='wrap'
-      >
-      </Stack>
 
       <Stack
         direction='row'

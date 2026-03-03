@@ -1,4 +1,11 @@
-import { Paper, Stack, Typography, Box, IconButton } from '@mui/material'
+import {
+  Paper,
+  Stack,
+  Typography,
+  Box,
+  IconButton,
+  Tooltip
+} from '@mui/material'
 import {
   AutoOrderJobDto,
   AutoOrderJobStatus,
@@ -7,7 +14,7 @@ import {
 } from '../../types'
 import { useAssetPairContext } from '../../contexts/AssetPairContext/hooks'
 import { Cancel, Pause, PlayArrow } from '@mui/icons-material'
-
+import WarningIcon from '@mui/icons-material/Warning'
 interface AutoOrderCardProps {
   job: AutoOrderJobDto
   openDetail: (job: AutoOrderJobDto) => void
@@ -64,17 +71,33 @@ export const AutoOrderCard = ({
       }}
     >
       <Stack spacing={1}>
-        <Typography
-          variant='body2'
-          color='#F3F4F6'
-          sx={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
+        <Stack
+          direction={'row'}
+          alignItems='center'
+          justifyContent={'space-between'}
         >
-          {job.jobId}
-        </Typography>
+          <Typography
+            variant='body2'
+            color='#F3F4F6'
+            sx={{
+              width: '200px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {job.jobId}
+          </Typography>
+
+          {job.errorMessage && (
+            <Tooltip title={job.errorMessage}>
+              <WarningIcon
+                fontSize='small'
+                color='error'
+              />
+            </Tooltip>
+          )}
+        </Stack>
         <Typography
           variant='caption'
           color='#9CA3AF'

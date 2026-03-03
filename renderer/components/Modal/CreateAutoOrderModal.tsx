@@ -19,6 +19,7 @@ interface CreateAutoOrderModalProps {
   onChangeData: (data: Partial<CreateAutoOrderFormData>) => void
   selectedWallet?: Wallet
   onChangeWallet: (wallet: Wallet) => void
+  balance?: string
 }
 
 export const CreateAutoOrderModal = ({
@@ -29,7 +30,8 @@ export const CreateAutoOrderModal = ({
   formData,
   onChangeData,
   selectedWallet,
-  onChangeWallet
+  onChangeWallet,
+  balance
 }: CreateAutoOrderModalProps) => {
   const handleClose = () => {
     onClose()
@@ -55,6 +57,7 @@ export const CreateAutoOrderModal = ({
             onChangeData={onChangeData}
             selectedWallet={selectedWallet}
             onChangeWallet={onChangeWallet}
+            balance={balance}
           />
         </Stack>
       </DialogContent>
