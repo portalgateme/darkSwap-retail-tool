@@ -16,7 +16,7 @@ export const registerAssetPairHandlers = () => {
     'assetPair:syncAssetPair',
     async (event, assetPairId, chainId) => {
       const dbInstance = getCurrentInstance()
-      await dbInstance.getAssetPairService().syncAssetPair(assetPairId, chainId)
+      await dbInstance.getAssetPairService().syncAssetPairs([chainId])
       return true
     }
   )

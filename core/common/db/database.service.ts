@@ -52,10 +52,17 @@ interface AutoOrderJobEntity {
   endAt?: number
   intervalSeconds: number
   status: number
+  cycleState: number
+  startDirection: number
+  lastReceivedAmount?: string
+  lastOrderId?: string
+  errorMessage?: string
   activeOrderId?: string
   lastRunAt?: number
   createdAt: Date
   updatedAt: Date
+  orders?: AutoOrderJobOrderEntity[]
+  maxOrdersPerDay: number
 }
 
 interface AutoOrderJobOrderEntity {
@@ -78,6 +85,18 @@ export class DatabaseService {
   private async init() {
     for (const table of config.tables) {
       this.db.exec(table)
+    }
+
+    try {
+      this.db.exec('ALTER TABLE AUTO_ORDER_JOBS ADD COLUMN lastOrderId TEXT')
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      this.db.exec('ALTER TABLE AUTO_ORDER_JOBS ADD COLUMN errorMessage TEXT')
+    } catch (e) {
+      // ignore
     }
   }
 
@@ -544,7 +563,7 @@ export class DatabaseService {
       nullifier, txHashCreated, swapMessage)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     const stmt = this.db.prepare(query)
-    stmt.run(
+    const result = stmt.run(
       order.orderId,
       order.chainId,
       order.assetPairId,
@@ -565,15 +584,34 @@ export class DatabaseService {
       order.txHashCreated,
       order.swapMessage
     )
+    return Number(result.lastInsertRowid)
   }
 
-  public async updateTxCreatedRetailOrderByDto(
+  public async updateTxCreatedRetailOrderById(
     orderId: string,
     txHashCreated: string
   ) {
     const query = `UPDATE ORDERS SET txHashCreated = ? WHERE orderId = ?`
     const stmt = this.db.prepare(query)
     stmt.run(txHashCreated, orderId)
+  }
+
+  public async updateAgentOrderIdOfRetailOrderById(
+    orderId: string,
+    agentOrderId: string
+  ) {
+    const query = `UPDATE ORDERS SET agentOrderId = ? WHERE orderId = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(agentOrderId, orderId)
+  }
+
+  public async updateTxCreatedRetailOrderByDto(
+    id: number,
+    txHashCreated: string
+  ) {
+    const query = `UPDATE ORDERS SET txHashCreated = ? WHERE id = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(txHashCreated, id)
   }
 
   public async getOrdersByStatusAndPage(
@@ -928,8 +966,8 @@ export class DatabaseService {
     const query = `INSERT INTO AUTO_ORDER_JOBS (
       jobId, chainId, wallet, assetPairId, orderDirection, orderType,
       timeInForce, stpMode, price, marketPrice, minPrice, maxPrice, amountOut, feeRatio,
-      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId, errorMessage, maxOrdersPerDay
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
     const stmt = this.db.prepare(query)
     stmt.run(
@@ -955,7 +993,10 @@ export class DatabaseService {
       job.lastRunAt ?? null,
       job.cycleState ?? AutoOrderCycleState.CREATE_SELL,
       job.startDirection ?? job.orderDirection,
-      job.lastReceivedAmount ?? '0'
+      job.lastReceivedAmount ?? '0',
+      job.lastOrderId ?? null,
+      job.errorMessage ?? null,
+      job.maxOrdersPerDay
     )
   }
 
@@ -989,10 +1030,16 @@ export class DatabaseService {
       endAt: row.endAt,
       intervalSeconds: row.intervalSeconds,
       status: row.status,
+      cycleState: row.cycleState,
       activeOrderId: row.activeOrderId,
       lastRunAt: row.lastRunAt,
+      startDirection: row.startDirection,
+      lastReceivedAmount: row.lastReceivedAmount,
+      lastOrderId: row.lastOrderId,
+      errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }
   }
 
@@ -1023,10 +1070,16 @@ export class DatabaseService {
       endAt: row.endAt,
       intervalSeconds: row.intervalSeconds,
       status: row.status,
+      cycleState: row.cycleState,
       activeOrderId: row.activeOrderId,
       lastRunAt: row.lastRunAt,
+      startDirection: row.startDirection,
+      lastReceivedAmount: row.lastReceivedAmount,
+      lastOrderId: row.lastOrderId,
+      errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }))
   }
 
@@ -1042,17 +1095,32 @@ export class DatabaseService {
   public async updateAutoOrderJobActiveOrder(
     jobId: string,
     activeOrderId: string | null,
-    lastRunAt?: number
+    lastRunAt: number | null
   ) {
     const query = `UPDATE AUTO_ORDER_JOBS SET activeOrderId = ?, lastRunAt = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
     const stmt = this.db.prepare(query)
     stmt.run(activeOrderId, lastRunAt ?? null, jobId)
   }
 
+  public async updateAutoOrderJobLastOrder(jobId: string, lastOrderId: string) {
+    const query = `UPDATE AUTO_ORDER_JOBS SET lastOrderId = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(lastOrderId, jobId)
+  }
+
   public async updateAutoOrderJobLastRun(jobId: string, lastRunAt: number) {
     const query = `UPDATE AUTO_ORDER_JOBS SET lastRunAt = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
     const stmt = this.db.prepare(query)
     stmt.run(lastRunAt, jobId)
+  }
+
+  public async updateAutoOrderJobErrorMessage(
+    jobId: string,
+    errorMessage: string | null
+  ) {
+    const query = `UPDATE AUTO_ORDER_JOBS SET errorMessage = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(errorMessage, jobId)
   }
 
   public async updateAutoOrderJobsMarketPrice(
@@ -1081,6 +1149,10 @@ export class DatabaseService {
       startAt = ?,
       endAt = ?,
       intervalSeconds = ?,
+      cycleState = ?,
+      startDirection = ?,
+      lastReceivedAmount = ?,
+      lastOrderId = ?,
       updatedAt = CURRENT_TIMESTAMP
       WHERE jobId = ?`
 
@@ -1100,6 +1172,10 @@ export class DatabaseService {
       job.startAt,
       job.endAt ?? null,
       job.intervalSeconds,
+      job.cycleState,
+      job.startDirection ?? job.orderDirection,
+      job.lastReceivedAmount ?? '0',
+      job.lastOrderId ?? null,
       job.jobId
     )
   }
@@ -1110,7 +1186,8 @@ export class DatabaseService {
     limit: number,
     sort: string,
     status?: number,
-    search?: string
+    search?: string,
+    includeOrders = false
   ): Promise<{ jobs: AutoOrderJobDto[]; total: number }> {
     const offset = (page - 1) * limit
     const params: any[] = [chainId]
@@ -1145,6 +1222,15 @@ export class DatabaseService {
     const stmt = this.db.prepare(query)
     const rows = stmt.all(...params) as AutoOrderJobEntity[]
 
+    if (includeOrders) {
+      for (const row of rows) {
+        if (row.jobId) {
+          const orders = await this.getAutoOrderJobOrdersByJobId(row.jobId)
+          ;(row as any).orders = orders
+        }
+      }
+    }
+
     const jobs = rows.map((row) => ({
       id: row.id,
       jobId: row.jobId,
@@ -1165,12 +1251,19 @@ export class DatabaseService {
       endAt: row.endAt,
       intervalSeconds: row.intervalSeconds,
       status: row.status,
+      cycleState: row.cycleState,
       activeOrderId: row.activeOrderId,
       lastRunAt: row.lastRunAt,
+      startDirection: row.startDirection,
+      lastReceivedAmount: row.lastReceivedAmount,
+      lastOrderId: row.lastOrderId,
+      errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      orders: row.orders,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }))
-
+    
     return { jobs, total }
   }
 
@@ -1211,7 +1304,9 @@ export class DatabaseService {
     ) as OrderRetailDto[]
 
     return rows.map((row) => ({
+      id: row.id,
       orderId: row.orderId,
+      agentOrderId: row.agentOrderId,
       chainId: row.chainId,
       assetPairId: row.assetPairId,
       orderDirection: row.orderDirection,

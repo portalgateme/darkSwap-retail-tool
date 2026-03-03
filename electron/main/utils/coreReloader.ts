@@ -2,7 +2,6 @@ import { Database } from 'better-sqlite3'
 import { ipcMain } from 'electron'
 import { ConfigLoader } from '../../utils/configUtil'
 import { DarkSwapClientCore, DarkSwapConfig } from '../../../core'
-import { config } from '../database'
 import { WalletConfig } from '../../utils/configValidator'
 
 interface CoreReloaderOptions {
@@ -55,7 +54,7 @@ function createCoreInstance(
     wallets: wallets || [],
     chainRpcs: latestConfig.chainRpcs || [],
     dbFilePath: dbPath,
-    bookNodeApiUrl: latestConfig.bookNodeApiUrl || 'https://api.darknode.io/api'
+    agentUrl: latestConfig.agentUrl || 'https://agent.darkSwap.me/api'
   }
 
   const instance = new DarkSwapClientCore(darkSwapConfig, db)
@@ -114,8 +113,7 @@ export async function reloadCore(db: Database, dbPath: string): Promise<void> {
       wallets: [...(latestConfig.wallets || []), ...dbWallets],
       chainRpcs: latestConfig.chainRpcs || [],
       dbFilePath: dbPath,
-      bookNodeApiUrl:
-        latestConfig.bookNodeApiUrl || 'https://api.darknode.io/api'
+      agentUrl: latestConfig.agentUrl || 'https://agent.darkSwap.me/api'
     }
 
     // Create new instance with updated config

@@ -140,6 +140,24 @@ export const OrderStatusLabel = ({ status }: OrderStatusProps) => {
         </Typography>
       )
 
+    case OrderStatus.WITHDRAWN:
+      return (
+        <Typography
+          color='#919EAB'
+          fontWeight={700}
+          sx={{
+            fontSize: '12px',
+            width: 'fit-content',
+            bgcolor: 'rgba(145, 158, 171, 0.16)',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            textAlign: 'center'
+          }}
+        >
+          Withdrawn
+        </Typography>
+      )
+
     // case OrderStatus.FINALIZED:
     //   return (
     //     <Typography

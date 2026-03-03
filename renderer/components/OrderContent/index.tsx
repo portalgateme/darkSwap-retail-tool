@@ -366,7 +366,7 @@ export const OrderContent = () => {
           </FormControl>
         </Stack>
 
-        <Button
+        {/* <Button
           variant='contained'
           sx={{
             background: '#68EB8E',
@@ -380,7 +380,7 @@ export const OrderContent = () => {
           disabled={!!loading}
         >
           Place Order
-        </Button>
+        </Button> */}
       </Stack>
       {/* Table */}
       <TableContainer
@@ -408,9 +408,8 @@ export const OrderContent = () => {
               <TableCell>Id</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Pair Id</TableCell>
-              <TableCell>Direction</TableCell>
+              <TableCell>Side</TableCell>
               <TableCell align='center'>Status</TableCell>
-              <TableCell>Type</TableCell>
               <TableCell>Amount</TableCell>
               <TableCell>Price</TableCell>
               <TableCell>Total</TableCell>
@@ -487,19 +486,37 @@ export const OrderContent = () => {
                     {row.orderDirection === OrderDirection.BUY ? 'Buy' : 'Sell'}
                   </TableCell>
                   <TableCell align='center'>
-                    {row.events[0] && (
-                      <OrderStatusLabel status={row.events[0].status} />
+                    {row.status != undefined && (
+                      <OrderStatusLabel status={row.status} />
                     )}
                   </TableCell>
-                  <TableCell>{orderType(row.orderType)}</TableCell>
-                  <TableCell>{formatAmountOut(row)}</TableCell>
+
+                  <TableCell>
+                    <Tooltip title={formatAmountOut(row)}>
+                      <span>
+                        {new Intl.NumberFormat('en-US', {
+                          maximumFractionDigits: 5
+                        }).format(parseFloat(formatAmountOut(row)))}
+                      </span>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell>{row.price}</TableCell>
-                  <TableCell>{formatAmountIn(row)}</TableCell>
+                  <TableCell>
+                    {
+                      <Tooltip title={formatAmountIn(row)}>
+                        <span>
+                          {new Intl.NumberFormat('en-US', {
+                            maximumFractionDigits: 5
+                          }).format(parseFloat(formatAmountIn(row)))}
+                        </span>
+                      </Tooltip>
+                    }
+                  </TableCell>
                   {/* <TableCell>
                     <NetworkLabel chainId={row.chainId} />
                   </TableCell> */}
                   <TableCell>
-                    {row.events[0] && isCancelable(row.events[0].status) && (
+                    {row.events[0] && isCancelable(row.status) && (
                       <Button
                         variant='outlined'
                         color='error'

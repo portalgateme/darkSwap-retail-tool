@@ -55,7 +55,8 @@ export enum OrderStatus {
   SETTLED = 3,
   CANCELLED = 4,
   NOT_TRIGGERED = 5,
-  TRIGGERED = 6
+  TRIGGERED = 6,
+  WITHDRAWN = 7
 }
 
 export enum AutoOrderJobStatus {
@@ -117,21 +118,12 @@ export interface ProofOptionsConfig {
   memory?: number
 }
 
-export interface FireblocksConfig {
-  privateKey: string
-  apiKey: string
-  apiBaseUrl?: string
-}
-
 export interface DarkSwapConfig {
   wallets: WalletConfig[]
   chainRpcs: ChainRpcConfig[]
   dbFilePath: string
-  bookNodeApiUrl: string
-  userSwapRelayerAddress?: string
-  userSwapRelayerPrivateKey?: string
+  agentUrl: string
   proofOptions?: ProofOptionsConfig
-  fireblocks?: FireblocksConfig
 }
 
 export interface BaseDto {
@@ -164,7 +156,8 @@ export interface OrderDto extends BaseDto {
 
 export interface OrderRetailDto extends BaseDto {
   id?: number
-  orderId?: string
+  orderId: string
+  agentOrderId?: string
   assetPairId: string
   orderDirection: OrderDirection
   orderType: OrderType
@@ -227,8 +220,12 @@ export interface AutoOrderJobDto extends BaseDto {
   cycleState?: AutoOrderCycleState
   startDirection?: OrderDirection
   lastReceivedAmount?: string
+  lastOrderId?: string
+  errorMessage?: string
   createdAt?: Date
   updatedAt?: Date
+  orders?: AutoOrderJobOrderDto[]
+  maxOrdersPerDay: number
 }
 
 export interface AutoOrderJobOrderDto extends BaseDto {

@@ -51,15 +51,16 @@ export const AutoOrderContent = () => {
   const [formData, setFormData] = useState<CreateAutoOrderFormData>({
     price: '',
     marketPrice: '',
-    minPrice: '',
-    maxPrice: '',
+    minPrice: '0',
+    maxPrice: '0',
     amountOut: '',
     feeRatio: '0.001',
     startAt: '',
     endAt: '',
     intervalSeconds: '15',
     orderDirection: OrderDirection.SELL,
-    orderType: OrderType.LIMIT
+    orderType: OrderType.LIMIT,
+    maxOrdersPerDay: '8'
   })
 
   const [jobs, setJobs] = useState<AutoOrderJobDto[]>([])
@@ -178,8 +179,6 @@ export const AutoOrderContent = () => {
       !!selectedPair &&
       (formData.orderType === OrderType.MARKET || formData.price !== '') &&
       formData.marketPrice !== '' &&
-      formData.minPrice !== '' &&
-      formData.maxPrice !== '' &&
       formData.amountOut !== '' &&
       Number(formData.intervalSeconds) > 0 &&
       (formData.endAt && formData.startAt
@@ -199,8 +198,10 @@ export const AutoOrderContent = () => {
         10, // TODO: hardcoded limit, need to implement pagination in the future
         SortType.NEWEST,
         undefined, // TODO: hardcoded page, need to implement pagination in the future
-        undefined // TODO: hardcoded page, need to implement pagination in the future
+        undefined, // TODO: hardcoded page, need to implement pagination in the future
+        true // includeOrders, set to true to fetch orders for each job
       )
+      console.log('Fetched auto order jobs', result)
       setJobs(result.jobs || [])
       setTotalJobs(result.total || 0)
     } catch (error) {
@@ -255,15 +256,16 @@ export const AutoOrderContent = () => {
       ...prev,
       price: '',
       marketPrice: '',
-      minPrice: '',
-      maxPrice: '',
+      minPrice: '0',
+      maxPrice: '0',
       amountOut: '',
       feeRatio: '0.001',
       startAt: '',
       endAt: '',
       intervalSeconds: '15',
       orderDirection: OrderDirection.SELL,
-      orderType: OrderType.LIMIT
+      orderType: OrderType.LIMIT,
+      maxOrdersPerDay: '8'
     }))
     setSelectedWallet(selectedAccount || null)
   }
@@ -273,15 +275,16 @@ export const AutoOrderContent = () => {
       ...prev,
       price: '',
       marketPrice: '',
-      minPrice: '',
-      maxPrice: '',
+      minPrice: '0',
+      maxPrice: '0',
       amountOut: '',
       feeRatio: '0.001',
       startAt: '',
       endAt: '',
       intervalSeconds: '15',
       orderDirection: OrderDirection.SELL,
-      orderType: OrderType.LIMIT
+      orderType: OrderType.LIMIT,
+      maxOrdersPerDay: '8'
     }))
   }
 
@@ -315,14 +318,15 @@ export const AutoOrderContent = () => {
         stpMode: StpMode.NONE,
         price: formData.orderType === OrderType.MARKET ? '0' : formData.price,
         marketPrice: formData.marketPrice || '0',
-        minPrice: formData.minPrice,
-        maxPrice: formData.maxPrice,
+        minPrice: '0',
+        maxPrice: '0',
         amountOut: formData.amountOut,
         feeRatio: formData.feeRatio,
         startAt: formData.startAt ? +formData.startAt : Date.now(),
         endAt: formData.endAt ? +formData.endAt : undefined,
         intervalSeconds: Number(formData.intervalSeconds),
-        status: AutoOrderJobStatus.ACTIVE
+        status: AutoOrderJobStatus.ACTIVE,
+        maxOrdersPerDay: Number(formData.maxOrdersPerDay)
       }
 
       // @ts-ignore

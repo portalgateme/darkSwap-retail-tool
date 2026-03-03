@@ -1,67 +1,103 @@
 import {
-  DarkSwapOrderNote,
   DarkSwapError,
-  RetailCreateOrderService,
+  DarkSwapMessage,
+  DarkSwapOrderNote,
+  deserializeDarkSwapMessage,
+  hexlify32,
   RetailCancelOrderService,
-  serializeDarkSwapMessage,
-  deserializeDarkSwapMessage
+  RetailCreateOrderService,
+  serializeDarkSwapMessage
 } from '@thesingularitynetwork/darkswap-sdk'
+import { Logger } from 'tslog'
 import { v4 } from 'uuid'
+import { AgentService } from '../common/agent.service'
 import { DarkSwapContext } from '../common/context/darkSwap.context'
 import { DatabaseService } from '../common/db/database.service'
+import { RpcManager } from '../common/rpcManager'
+import { SubgraphService } from '../common/subgraph.service'
 import { getConfirmations } from '../config/networkConfig'
 import {
   AssetPairDto,
-  CancelOrderDto,
-  NoteStatus,
   OrderDirection,
   OrderDto,
   OrderNoteStatus,
   OrderRetailDto,
-  OrderStatus,
-  OrderType,
-  UpdatePriceDto
+  OrderStatus
 } from '../types'
+import { getBalance } from '../utils/getBalance'
+import { checkPrice } from '../utils/priceUtil'
 import { OrderEventService } from './orderEvent.service'
 import { NoteService } from '../common/note.service'
-import { Logger } from 'tslog'
-import { RpcManager } from '../common/rpcManager'
-import { checkPrice } from '../utils/priceUtil'
-import { getBalance } from '../utils/getBalance'
-import { getAuthInfo } from '../auth/authInfo.service'
 
 export class OrderRetailService {
   private readonly logger = new Logger({ name: OrderRetailService.name })
 
   private dbService: DatabaseService
   private orderEventService: OrderEventService
-  private noteService: NoteService
   private rpcManager: RpcManager
+  private agentService: AgentService
+  private subgraphService: SubgraphService
+  private noteService: NoteService
 
   public constructor(
     dbService: DatabaseService,
     orderEventService: OrderEventService,
     rpcManager: RpcManager,
+    agentService: AgentService,
+    subgraphService: SubgraphService,
     noteService: NoteService
   ) {
     this.dbService = dbService
     this.rpcManager = rpcManager
     this.orderEventService = orderEventService
+    this.agentService = agentService
+    this.subgraphService = subgraphService
     this.noteService = noteService
   }
 
-  async triggerOrder(orderInfo: OrderDto) {
-    if (!orderInfo) {
-      throw new DarkSwapError('Order not found')
+  private async submitOrderToAgent(
+    txHash: string,
+    orderDto: OrderRetailDto,
+    swapMessage: DarkSwapMessage,
+    darkSwapContext: DarkSwapContext) {
+
+    if (orderDto.agentOrderId) {
+      return
     }
 
-    this.dbService.updateOrderTriggered(orderInfo.orderId)
+    let agentOrderIdFromAgent = await this.agentService.getOrderByTxHash(
+      orderDto.chainId,
+      orderDto.wallet,
+      txHash,
+      darkSwapContext.signer
+    )
+
+    if (!agentOrderIdFromAgent) {
+      const orderRetailDto: OrderRetailDto = {
+        ...orderDto,
+        txHashCreated: txHash,
+        swapMessage: serializeDarkSwapMessage(swapMessage)
+      }
+      agentOrderIdFromAgent = await this.agentService.submitOrder(orderRetailDto.chainId, orderRetailDto, darkSwapContext.signer)
+
+    }
+
+    await this.dbService.updateAgentOrderIdOfRetailOrderById(
+      orderDto.orderId!,
+      agentOrderIdFromAgent
+    )
 
     await this.orderEventService.logOrderStatusChange(
-      orderInfo.orderId,
-      orderInfo.wallet,
-      orderInfo.chainId,
-      OrderStatus.TRIGGERED
+      orderDto.orderId!,
+      darkSwapContext.walletAddress,
+      darkSwapContext.chainId,
+      OrderStatus.OPEN
+    )
+
+    this.logger.info(
+      `Order created: ${orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
+      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${orderDto.amountOut
+      } IN: ${orderDto.amountIn}`
     )
   }
 
@@ -69,99 +105,105 @@ export class OrderRetailService {
     orderDto: OrderRetailDto,
     darkSwapContext: DarkSwapContext
   ) {
-    const assetPair = await this.dbService.getAssetPairById(
-      orderDto.assetPairId,
-      orderDto.chainId
-    )
-
-    if (!assetPair) {
-      throw new DarkSwapError('Asset pair not found')
-    }
-
-    const amountQuote =
-      orderDto.orderDirection === OrderDirection.BUY
-        ? BigInt(orderDto.amountOut)
-        : BigInt(orderDto.amountIn)
-    const amountBase =
-      orderDto.orderDirection === OrderDirection.BUY
-        ? BigInt(orderDto.amountIn)
-        : BigInt(orderDto.amountOut)
-
-    if (
-      !checkPrice(
-        amountBase,
-        amountQuote,
-        assetPair.baseDecimal,
-        assetPair.quoteDecimal,
-        Number(orderDto.price)
-      )
-    ) {
-      throw new DarkSwapError('Price not match with amountOut and amountIn')
-    }
-
-    const outAsset =
-      orderDto.orderDirection === OrderDirection.BUY
-        ? assetPair.quoteAddress
-        : assetPair.baseAddress
-    const inAsset =
-      orderDto.orderDirection === OrderDirection.BUY
-        ? assetPair.baseAddress
-        : assetPair.quoteAddress
-
-    const currentBalance = await getBalance(
-      outAsset,
-      darkSwapContext.walletAddress,
-      darkSwapContext.chainId,
-      darkSwapContext.darkSwap.provider
-    )
-    if (currentBalance < BigInt(orderDto.amountOut)) {
-      throw new DarkSwapError(`Insufficient Asset ${outAsset}`)
+    if (!orderDto.orderId) {
+      orderDto.orderId = v4()
     }
 
     const retailCreateOrderService = new RetailCreateOrderService(
       darkSwapContext.darkSwap
     )
-    const { context, swapMessage } = await retailCreateOrderService.prepare(
-      darkSwapContext.walletAddress,
-      outAsset,
-      BigInt(orderDto.amountOut),
-      inAsset,
-      BigInt(orderDto.amountIn),
-      darkSwapContext.signature
-    )
-    // this.noteService.addNote(swapMessage.orderNote, darkSwapContext, true)
-    // if (newBalance.amount > 0n) {
-    //   this.noteService.addNote(newBalance, darkSwapContext, false)
-    // }
 
-    // this.noteService.setNoteActive(swapMessage.orderNote, darkSwapContext, tx)
+    let context
+    let swapMessage
 
-    if (!orderDto.orderId) {
-      orderDto.orderId = v4()
-    }
+    if (orderDto.swapMessage) {
+      swapMessage = deserializeDarkSwapMessage(orderDto.swapMessage)
 
-    if (
-      orderDto.orderType === OrderType.STOP_LOSS_LIMIT ||
-      orderDto.orderType === OrderType.STOP_LOSS ||
-      orderDto.orderType === OrderType.TAKE_PROFIT ||
-      orderDto.orderType === OrderType.TAKE_PROFIT_LIMIT
-    ) {
-      orderDto.status = OrderStatus.NOT_TRIGGERED
+      const createOrderTx = await this.subgraphService.getCreateOrderTxByNote(
+        orderDto.chainId,
+        hexlify32(swapMessage.orderNote.note)
+      )
+
+      if (createOrderTx) {
+        await this.submitOrderToAgent(
+          createOrderTx,
+          orderDto,
+          swapMessage,
+          darkSwapContext
+        )
+        return
+      } else {
+        context = await retailCreateOrderService.rebuildContextFromSwapMessage(swapMessage, darkSwapContext.signature)
+      }
     } else {
+      const assetPair = await this.dbService.getAssetPairById(
+        orderDto.assetPairId,
+        orderDto.chainId
+      )
+
+      if (!assetPair) {
+        throw new DarkSwapError('Asset pair not found')
+      }
+
+      const amountQuote =
+        orderDto.orderDirection === OrderDirection.BUY
+          ? BigInt(orderDto.amountOut)
+          : BigInt(orderDto.amountIn)
+      const amountBase =
+        orderDto.orderDirection === OrderDirection.BUY
+          ? BigInt(orderDto.amountIn)
+          : BigInt(orderDto.amountOut)
+
+      if (
+        !checkPrice(
+          amountBase,
+          amountQuote,
+          assetPair.baseDecimal,
+          assetPair.quoteDecimal,
+          Number(orderDto.price)
+        )
+      ) {
+        throw new DarkSwapError('Price not match with amountOut and amountIn')
+      }
+
+      const outAsset =
+        orderDto.orderDirection === OrderDirection.BUY
+          ? assetPair.quoteAddress
+          : assetPair.baseAddress
+      const inAsset =
+        orderDto.orderDirection === OrderDirection.BUY
+          ? assetPair.baseAddress
+          : assetPair.quoteAddress
+
+      const currentBalance = await getBalance(
+        outAsset,
+        darkSwapContext.walletAddress,
+        darkSwapContext.chainId,
+        darkSwapContext.darkSwap.provider
+      )
+      if (currentBalance < BigInt(orderDto.amountOut)) {
+        throw new DarkSwapError(`Insufficient Asset ${outAsset}`)
+      }
+
+      const result = await retailCreateOrderService.prepare(
+        darkSwapContext.walletAddress,
+        outAsset,
+        BigInt(orderDto.amountOut),
+        inAsset,
+        BigInt(orderDto.amountIn),
+        darkSwapContext.signature
+      )
+      context = result.context
+      swapMessage = result.swapMessage
       orderDto.status = OrderStatus.OPEN
+      orderDto.noteCommitment = swapMessage.orderNote.note.toString()
+      orderDto.nullifier = swapMessage.orderNullifier.toString()
+      orderDto.feeRatio = swapMessage.orderNote.feeRatio.toString()
+      orderDto.publicKey = darkSwapContext.publicKey
+      orderDto.swapMessage = serializeDarkSwapMessage(swapMessage)
+
+      await this.dbService.addRetailOrderByDto(orderDto)
     }
-
-    orderDto.noteCommitment = swapMessage.orderNote.note.toString()
-    orderDto.nullifier = swapMessage.orderNullifier.toString()
-    orderDto.feeRatio = swapMessage.orderNote.feeRatio.toString()
-    orderDto.publicKey = darkSwapContext.publicKey
-
-    const orderRetailDto: OrderRetailDto = {
-      ...orderDto,
-      swapMessage: serializeDarkSwapMessage(swapMessage)
-    }
-
-    await this.dbService.addRetailOrderByDto(orderRetailDto)
 
     const tx = await retailCreateOrderService.execute(context)
     const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
@@ -172,85 +214,23 @@ export class OrderRetailService {
       throw new DarkSwapError('Order creation failed')
     }
 
-    await this.dbService.updateTxCreatedRetailOrderByDto(
-      orderRetailDto.orderId!,
+    await this.dbService.updateTxCreatedRetailOrderById(
+      orderDto.orderId!,
       tx
     )
 
-    delete orderDto.noteCommitment
-
-    delete orderRetailDto.orderId
-    delete orderRetailDto.partialAmountIn
-    delete orderRetailDto.publicKey
-
-    await this.orderEventService.logOrderStatusChange(
-      orderDto.orderId,
-      darkSwapContext.walletAddress,
-      darkSwapContext.chainId,
-      orderDto.status
+    await this.submitOrderToAgent(
+      tx,
+      orderDto,
+      swapMessage,
+      darkSwapContext
     )
-
-    this.logger.info(
-      `Order created: ${
-        orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
-      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${
-        orderDto.amountOut
-      } IN: ${orderDto.amountIn}`
-    )
-  }
-
-  async updateOrderPrice(updatePriceDto: UpdatePriceDto) {
-    const order = await this.dbService.getOrderByOrderId(updatePriceDto.orderId)
-    if (!order) {
-      throw new DarkSwapError('Order not found')
-    } else if (order.status != OrderStatus.OPEN) {
-      throw new DarkSwapError('Order is not in open status')
-    }
-
-    const assetPair = await this.dbService.getAssetPairById(
-      order.assetPairId,
-      order.chainId
-    )
-    if (!assetPair) {
-      throw new DarkSwapError('Asset pair not found')
-    }
-
-    const amountQuote =
-      order.orderDirection === OrderDirection.BUY
-        ? BigInt(order.amountOut)
-        : BigInt(updatePriceDto.amountIn)
-    const amountBase =
-      order.orderDirection === OrderDirection.BUY
-        ? BigInt(updatePriceDto.amountIn)
-        : BigInt(order.amountOut)
-
-    if (
-      !checkPrice(
-        amountBase,
-        amountQuote,
-        assetPair.baseDecimal,
-        assetPair.quoteDecimal,
-        Number(updatePriceDto.price)
-      )
-    ) {
-      throw new DarkSwapError('Price not match with amountOut and amountIn')
-    }
-
-    // await this.bookNodeService.updateOrderPrice(updatePriceDto)
-    await this.dbService.updateOrderPrice(
-      updatePriceDto.orderId,
-      updatePriceDto.price,
-      BigInt(updatePriceDto.amountIn),
-      BigInt(updatePriceDto.partialAmountIn)
-    )
-    return true
   }
 
   // Method to cancel an order
   async cancelOrder(
     orderId: string,
-    darkSwapContext: DarkSwapContext,
-    byNotification: boolean = false
+    darkSwapContext: DarkSwapContext
   ) {
     const order = await this.dbService.getRetailOrderByOrderId(orderId)
     if (!order) {
@@ -258,70 +238,60 @@ export class OrderRetailService {
     }
 
     if (
-      order.status !== OrderStatus.OPEN &&
-      order.status !== OrderStatus.NOT_TRIGGERED
+      order.status !== OrderStatus.OPEN
     ) {
       throw new DarkSwapError('Order is not cancellable')
     }
 
-    const note = deserializeDarkSwapMessage(order.swapMessage!).orderNote
+    const swapMessage = deserializeDarkSwapMessage(order.swapMessage!)
 
-    const noteToProcess = {
-      note: note.note,
-      rho: note.rho,
-      asset: note.asset,
-      amount: note.amount,
-      feeRatio: BigInt(order.feeRatio)
-    } as DarkSwapOrderNote
-
-    const retailCancelOrderService = new RetailCancelOrderService(
-      darkSwapContext.darkSwap
+    const cancelTx = await this.subgraphService.getCancelTxByNote(
+      order.chainId,
+      order.nullifier!
     )
 
-    const { context } = await retailCancelOrderService.prepare(
-      darkSwapContext.walletAddress,
-      noteToProcess,
-      darkSwapContext.signature
-    )
+    if (!cancelTx) {
 
-    const tx = await retailCancelOrderService.execute(context)
-    const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
-      tx,
-      getConfirmations(darkSwapContext.chainId)
-    )
-    if (receipt && receipt.status !== 1) {
-      throw new DarkSwapError('Order cancellation failed')
+      const noteStatus = await this.noteService.checkNoteByPubkey(
+        swapMessage.orderNote,
+        order.publicKey!,
+        order.chainId
+      )
+
+      if (noteStatus == OrderNoteStatus.USED) {
+        throw new DarkSwapError('Order is not cancellable')
+      }
+
+      const retailCancelOrderService = new RetailCancelOrderService(
+        darkSwapContext.darkSwap
+      )
+
+      const { context } = await retailCancelOrderService.prepare(
+        darkSwapContext.walletAddress,
+        swapMessage.orderNote,
+        darkSwapContext.signature
+      )
+
+      const tx = await retailCancelOrderService.execute(context)
+      const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
+        tx,
+        getConfirmations(darkSwapContext.chainId)
+      )
+      if (receipt && receipt.status !== 1) {
+        throw new DarkSwapError('Order cancellation failed')
+      }
     }
 
-    // this.noteService.setNoteUsed(noteToProcess as DarkSwapNote, darkSwapContext)
+    if (order.agentOrderId) {
+      await this.agentService.cancelOrder(
+        darkSwapContext.chainId,
+        darkSwapContext.walletAddress,
+        order.agentOrderId!,
+        darkSwapContext.signer
+      )
+    }
 
-    const cancelOrderDto = {
-      orderId: orderId,
-      chainId: darkSwapContext.chainId,
-      wallet: darkSwapContext.walletAddress
-    } as CancelOrderDto
-
-    await this.dbService.cancelOrder(cancelOrderDto.orderId)
-    // if (!byNotification) {
-    //   const authInfo = await getAuthInfo(darkSwapContext)
-    //   await this.bookNodeService.cancelOrder(cancelOrderDto, authInfo)
-    // }
-
-    await this.orderEventService.logOrderStatusChange(
-      orderId,
-      darkSwapContext.walletAddress,
-      darkSwapContext.chainId,
-      OrderStatus.CANCELLED
-    )
-  }
-
-  async cancelOrderByNotificaion(orderInfo: OrderDto) {
-    const darkSwapContext = await DarkSwapContext.createDarkSwapContext(
-      orderInfo.chainId,
-      orderInfo.wallet,
-      this.rpcManager
-    )
-    await this.cancelOrder(orderInfo.orderId, darkSwapContext, true)
+    await this.dbService.cancelOrder(orderId)
   }
 
   async getOrdersByStatusAndPage(
@@ -334,6 +304,10 @@ export class OrderRetailService {
 
   async getOrderById(orderId: string): Promise<OrderDto | null> {
     return await this.dbService.getOrderByOrderId(orderId)
+  }
+
+  async getRetailOrderById(orderId: string): Promise<OrderRetailDto | null> {
+    return await this.dbService.getRetailOrderByOrderId(orderId)
   }
 
   async getAssetPairs(chainId: number): Promise<AssetPairDto[]> {
@@ -365,54 +339,44 @@ export class OrderRetailService {
   public async syncOrderStatuses(): Promise<void> {
     // Get all active orders (status = 0 or pending status)
     const activeOrders = await this.dbService.getRetailActiveOrders()
+    console.log(`Found ${activeOrders.length} active orders to sync`)
 
     for (const order of activeOrders) {
       try {
+        if (!order.agentOrderId || order.agentOrderId === '' || !order.orderId) {
+          continue
+        }
+
         const context = await DarkSwapContext.createDarkSwapContext(
           order.chainId,
           order.wallet,
           this.rpcManager
         )
 
-        if (!order.swapMessage) {
-          console.warn(
-            `Order ${order.orderId} has no swap message, skipping status sync`
-          )
-          continue
-        }
-
-        const swapMessage = deserializeDarkSwapMessage(order.swapMessage)
-        const orderNote = swapMessage.orderNote
-        const inNote = swapMessage.inNote
-
-        // Check order status on-chain
-        const orderNoteStatus = await this.noteService.checkNoteByChain(
-          orderNote,
-          context.signature,
-          order.chainId
+        const orderFilled = await this.agentService.getOrderFilledByOrderId(
+          order.chainId,
+          order.agentOrderId,
+          order.wallet,
+          context.signer
         )
-
-        const inNoteStatus = await this.noteService.checkNoteByChain(
-          inNote,
-          context.signature,
-          order.chainId
+        console.log(
+          `Order ${order.orderId} filled: ${orderFilled}`
         )
-
-        const orderStatus =
-          orderNoteStatus === OrderNoteStatus.VERFIED
-            ? OrderStatus.OPEN
-            : inNoteStatus === OrderNoteStatus.VERFIED
-              ? OrderStatus.SETTLED
-              : OrderStatus.MATCHED
 
         // Update if status changed
-        if (order.status && orderStatus !== order.status && order.orderId) {
+        if (orderFilled) {
           await this.dbService.updateRetailOrderStatus(
             order.orderId,
-            orderStatus
+            OrderStatus.SETTLED
+          )
+          await this.orderEventService.logOrderStatusChange(
+            order.orderId,
+            context.walletAddress,
+            context.chainId,
+            OrderStatus.SETTLED
           )
           console.log(
-            `Updated order ${order.orderId} status: ${order.status} -> ${orderStatus}`
+            `Updated order ${order.orderId} status: ${order.status} -> ${OrderStatus.SETTLED}`
           )
         }
       } catch (error) {
@@ -420,4 +384,5 @@ export class OrderRetailService {
       }
     }
   }
+
 }

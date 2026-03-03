@@ -1,6 +1,4 @@
 import {
-  Box,
-  Button,
   MenuItem,
   Select,
   Stack,
@@ -8,17 +6,16 @@ import {
   Typography
 } from '@mui/material'
 
-import NetworkSelection from '../Selection/NetworkSelection'
-import AccountSelection from '../Selection/AccountSelection'
+import { useState } from 'react'
 import { useChainContext } from '../../contexts/ChainContext/hooks'
-import { useAssetPairContext } from '../../contexts/AssetPairContext/hooks'
 import {
   CreateAutoOrderFormData,
-  OrderDirection,
-  OrderType,
+  PriceType,
   Wallet
 } from '../../types'
+import AccountSelection from '../Selection/AccountSelection'
 import { AssetPairSelection } from '../Selection/AssetPairSelection'
+import NetworkSelection from '../Selection/NetworkSelection'
 import { OrderDirectionSelection } from '../Selection/OrderDirectionSelection'
 
 interface CreateAutoOrderFormProps {
@@ -34,12 +31,8 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
   selectedWallet,
   onChangeWallet
 }) => {
+  const [priceType, setPriceType] = useState<PriceType>(PriceType.MARKET)
   const { currentChain, onChangeChain } = useChainContext()
-  const {
-    list,
-    assetPair: selectedPair,
-    onChangeAssetPair
-  } = useAssetPairContext()
 
   const onChangeNumberData = (
     field: keyof CreateAutoOrderFormData,
@@ -69,17 +62,6 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
       return
     }
     onChangeData({ [field]: timestamp.toString() })
-  }
-
-  // Add validation helper functions
-  const validateMinMax = (min: string, max: string): string | null => {
-    if (!min || !max) return null
-    const minNum = parseFloat(min)
-    const maxNum = parseFloat(max)
-    if (minNum >= maxNum) {
-      return 'Min Price must be less than Max Price'
-    }
-    return null
   }
 
   const validatePrice = (price: string): string | null => {
@@ -194,30 +176,6 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
         spacing={2}
         flexWrap='wrap'
       >
-        <TextField
-          label='Min Price'
-          value={formData.minPrice}
-          onChange={(e) => {
-            onChangeNumberData('minPrice', e.target.value)
-          }}
-          error={!!validateMinMax(formData.minPrice, formData.maxPrice)}
-          helperText={validateMinMax(formData.minPrice, formData.maxPrice)}
-          size='small'
-          InputLabelProps={{ style: { color: '#BDC1CA' } }}
-          sx={{ input: { color: '#F3F4F6' }, width: 300 }}
-        />
-        <TextField
-          label='Max Price'
-          value={formData.maxPrice}
-          onChange={(e) => {
-            onChangeNumberData('maxPrice', e.target.value)
-          }}
-          error={!!validateMinMax(formData.minPrice, formData.maxPrice)}
-          helperText={validateMinMax(formData.minPrice, formData.maxPrice)}
-          size='small'
-          InputLabelProps={{ style: { color: '#BDC1CA' } }}
-          sx={{ input: { color: '#F3F4F6' }, width: 300 }}
-        />
       </Stack>
 
       <Stack
@@ -225,21 +183,59 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
         spacing={2}
         flexWrap='wrap'
       >
+        <Select
+          value={priceType}
+          onChange={(e) => setPriceType(e.target.value as PriceType)}
+          displayEmpty
+          sx={{
+            minWidth: 160,
+            // background: '#262A33',
+            color: '#F3F4F6',
+            borderRadius: '8px'
+          }}
+          size='small'
+          MenuProps={{
+            PaperProps: {
+              sx: {
+                background: '#1E2128',
+                color: '#F3F4F6'
+              }
+            }
+          }}
+          color='success'
+        >
+          <MenuItem value={PriceType.LIMIT}>Use Fixed Price</MenuItem>
+          <MenuItem value={PriceType.MARKET}>Use Market Price</MenuItem>
+        </Select>
+
         <TextField
-          label='Price'
-          value={formData.price}
-          disabled={formData.orderType === OrderType.MARKET}
+          label={
+            priceType === PriceType.LIMIT
+              ? 'Price'
+              : `Use realtime price from binance`
+          }
+          value={priceType === PriceType.LIMIT ? formData.price : ''}
+          disabled={priceType === PriceType.MARKET}
           error={!!validatePrice(formData.price)}
           helperText={validatePrice(formData.price)}
+          focused={priceType === PriceType.LIMIT}
           size='small'
-          required
+          required={priceType === PriceType.LIMIT}
           onChange={(e) => {
             onChangeNumberData('price', e.target.value)
           }}
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, width: 300 }}
+          color='success'
         />
+      </Stack>
 
+      <Stack
+        direction='row'
+        spacing={10}
+        flexWrap='wrap'
+        alignItems={'flex-start'}
+      >
         <TextField
           label='Amount'
           required
@@ -252,7 +248,48 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           size='small'
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 300 }}
+          color='success'
         />
+
+        <Stack
+          direction='row'
+          spacing={1}
+          alignItems='center'
+        >
+          <Typography color='#BDC1CA'>Max orders per day</Typography>
+          <Select
+            value={formData.maxOrdersPerDay}
+            onChange={(e) =>
+              onChangeNumberData('maxOrdersPerDay', e.target.value)
+            }
+            displayEmpty
+            sx={{
+              minWidth: 160,
+
+              height: 40,
+              // background: '#262A33',
+              color: '#F3F4F6',
+              borderRadius: '8px'
+            }}
+            size='small'
+            color='success'
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  background: '#1E2128',
+                  color: '#F3F4F6'
+                }
+              }
+            }}
+          >
+            <MenuItem value={4}>4</MenuItem>
+            <MenuItem value={8}>8</MenuItem>
+            <MenuItem value={16}>16</MenuItem>
+            <MenuItem value={32}>32</MenuItem>
+            <MenuItem value={64}>64</MenuItem>
+            <MenuItem value={128}>128</MenuItem>
+          </Select>
+        </Stack>
       </Stack>
 
       <Stack
@@ -273,6 +310,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
             style: { color: '#BDC1CA' }
           }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 240 }}
+          color='success'
         />
         <TextField
           label='End Date'
@@ -289,6 +327,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
             style: { color: '#BDC1CA' }
           }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 240 }}
+          color='success'
         />
         <TextField
           label='Interval (seconds)'
@@ -301,6 +340,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           size='small'
           InputLabelProps={{ style: { color: '#BDC1CA' } }}
           sx={{ input: { color: '#F3F4F6' }, minWidth: 180 }}
+          color='success'
         />
       </Stack>
     </Stack>

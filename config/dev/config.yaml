@@ -3,4 +3,4 @@ chainRpcs:
     rpcUrl: 'http://app.dev.portalgate.me:18544'
 
 dbFilePath: 'darkSwap-retail-tool-dev.db'
-bookNodeApiUrl: 'https://app.dev.portalgate.me:13005'
+agentUrl: 'https://app.dev.portalgate.me:13005/api'

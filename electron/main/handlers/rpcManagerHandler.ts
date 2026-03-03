@@ -10,18 +10,6 @@ export const registerRPCManagerHandlers = () => {
     return rpcManager
   })
 
-  // getSignerForUserSwapRelayer
-  ipcMain.handle(
-    'rpcManager:getSignerForUserSwapRelayer',
-    async (event, chainId: number) => {
-      const dbInstance = getCurrentInstance()
-      const rpcManager = dbInstance
-        .getRpcManager()
-        .getSignerForUserSwapRelayer(chainId)
-      return rpcManager
-    }
-  )
-
   // getSignerAndPublicKey
   ipcMain.handle(
     'rpcManager:getSignerAndPublicKey',

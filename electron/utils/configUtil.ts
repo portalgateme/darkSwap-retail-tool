@@ -3,7 +3,6 @@ import * as yaml from 'js-yaml'
 import { z } from 'zod'
 
 import { ConfigSchema, Config } from './configValidator'
-import { ethers } from 'ethers'
 import { app } from 'electron'
 import * as path from 'path'
 
@@ -43,27 +42,6 @@ export class ConfigLoader {
 
       const parsedConfig = ConfigSchema.parse(this.config)
 
-      if (parsedConfig.userSwapRelayerPrivateKey) {
-        if (
-          !parsedConfig.userSwapRelayerAddress ||
-          !ethers.isAddress(parsedConfig.userSwapRelayerAddress)
-        ) {
-          throw new Error(
-            'User swap relayer address and privatekey is not valid'
-          )
-        }
-
-        const wallet = new ethers.Wallet(parsedConfig.userSwapRelayerPrivateKey)
-        if (
-          wallet.address.toLowerCase() !=
-          parsedConfig.userSwapRelayerAddress.toLowerCase()
-        ) {
-          throw new Error(
-            'User swap relayer address is not aligned with privatekey'
-          )
-        }
-      }
-
       this.config = parsedConfig
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -90,24 +68,3 @@ export class ConfigLoader {
     return this.config ? this.config.wallets : []
   }
 }
-
-// export function configToDarkSwapConfig(config: Config): DarkSwapConfig {
-//   return {
-//     wallets: config.wallets.map((wallet) => ({
-//       type: wallet.type,
-//       name: wallet.name,
-//       address: wallet.address,
-//       privateKey: wallet.privateKey
-//     })),
-//     chainRpcs: config.chainRpcs.map((chainRpc) => ({
-//       chainId: chainRpc.chainId,
-//       rpcUrl: chainRpc.rpcUrl
-//     })),
-//     dbFilePath: config.dbFilePath,
-//     bookNodeSocketUrl: config.bookNodeSocketUrl,
-//     bookNodeApiUrl: config.bookNodeApiUrl,
-//     bookNodeApiKey: config.bookNodeApiKey,
-//     userSwapRelayerAddress: config.userSwapRelayerAddress,
-//     userSwapRelayerPrivateKey: config.userSwapRelayerPrivateKey
-//   }
-// }

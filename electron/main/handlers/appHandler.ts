@@ -13,72 +13,10 @@ type UpdateStatusPayload =
   | { status: 'downloaded'; info: { version: string; releaseName?: string } }
   | { status: 'error'; error: string }
 
-let autoUpdaterInitialized = false
 
 const broadcastUpdateStatus = (payload: UpdateStatusPayload) => {
   BrowserWindow.getAllWindows().forEach((win) => {
     win.webContents.send('app:update:status', payload)
-  })
-}
-
-const getAutoUpdateUrl = () => {
-  try {
-    const config = ConfigLoader.getInstance().getConfig()
-    return config?.autoUpdateUrl || process.env.AUTO_UPDATE_URL
-  } catch {
-    return process.env.AUTO_UPDATE_URL
-  }
-}
-
-const setupAutoUpdater = () => {
-  if (autoUpdaterInitialized) return
-  autoUpdaterInitialized = true
-
-  autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = true
-
-  const updateUrl = getAutoUpdateUrl()
-  if (updateUrl) {
-    autoUpdater.setFeedURL({ provider: 'generic', url: updateUrl })
-  }
-
-  autoUpdater.on('checking-for-update', () => {
-    broadcastUpdateStatus({ status: 'checking' })
-  })
-
-  autoUpdater.on('update-available', (info: UpdateInfo) => {
-    broadcastUpdateStatus({
-      status: 'available',
-      info: { version: info.version, releaseName: info.releaseName ?? undefined }
-    })
-  })
-
-  autoUpdater.on('update-not-available', () => {
-    broadcastUpdateStatus({ status: 'not-available' })
-  })
-
-  autoUpdater.on('download-progress', (progress: ProgressInfo) => {
-    broadcastUpdateStatus({
-      status: 'downloading',
-      progress: {
-        percent: progress.percent,
-        bytesPerSecond: progress.bytesPerSecond
-      }
-    })
-  })
-
-  autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-    broadcastUpdateStatus({
-      status: 'downloaded',
-      info: { version: info.version, releaseName: info.releaseName ?? undefined }
-    })
-  })
-
-  autoUpdater.on('error', (error: Error) => {
-    broadcastUpdateStatus({
-      status: 'error',
-      error: error?.message || 'Update error'
-    })
   })
 }
 
@@ -140,6 +78,5 @@ export const registerAppHandlers = () => {
   })
 
   app.on('ready', () => {
-    setupAutoUpdater()
   })
 }

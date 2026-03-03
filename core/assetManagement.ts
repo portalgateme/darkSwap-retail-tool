@@ -87,44 +87,6 @@ export class AssetManager {
     })
   }
 
-  public async deposit(depositDto: DepositDto) {
-    const context = await DarkSwapContext.createDarkSwapContext(
-      depositDto.chainId,
-      depositDto.wallet,
-      this.rpcManager
-    )
-    const mutex = this.walletMutexService.getMutex(
-      context.chainId,
-      context.walletAddress.toLowerCase()
-    )
-    await mutex.runExclusive(async () => {
-      await this.basicService.deposit(
-        context,
-        depositDto.asset,
-        BigInt(depositDto.amount)
-      )
-    })
-  }
-
-  public async withdraw(withdrawDto: WithdrawDto) {
-    const context = await DarkSwapContext.createDarkSwapContext(
-      withdrawDto.chainId,
-      withdrawDto.wallet,
-      this.rpcManager
-    )
-    const mutex = this.walletMutexService.getMutex(
-      context.chainId,
-      context.walletAddress.toLowerCase()
-    )
-    await mutex.runExclusive(async () => {
-      await this.basicService.withdraw(
-        context,
-        withdrawDto.asset,
-        BigInt(withdrawDto.amount)
-      )
-    })
-  }
-
   public async withdrawNote(withdrawNoteDto: WithdrawNoteDto) {
     const context = await DarkSwapContext.createDarkSwapContext(
       withdrawNoteDto.chainId,

@@ -72,7 +72,6 @@ export const HistoryContent = () => {
       status,
       search
     )
-    console.log('Fetched orders:', result)
     setListData(result.orderEvents)
     setTotalOrders(result.total)
   }

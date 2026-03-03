@@ -32,6 +32,7 @@ export const AssetPairSelection: React.FC<AssetPairSelectionProps> = ({}) => {
           }
         }
       }}
+      color='success'
     >
       {/* <MenuItem value=''>Select Asset Pair</MenuItem> */}
       {list.map((pair) => (

@@ -53,11 +53,28 @@ export const registerAutoOrderHandlers = () => {
 
   ipcMain.handle(
     'autoOrder:getJobsByPage',
-    async (event, chainId, page, limit, sort, status, search) => {
+    async (
+      event,
+      chainId,
+      page,
+      limit,
+      sort,
+      status,
+      search,
+      includeOrders
+    ) => {
       const dbInstance = getCurrentInstance()
       return await dbInstance
         .getAutoOrderManager()
-        .getJobsByPage(chainId, page, limit, sort, status, search)
+        .getJobsByPage(
+          chainId,
+          page,
+          limit,
+          sort,
+          status,
+          search,
+          includeOrders
+        )
     }
   )
 }

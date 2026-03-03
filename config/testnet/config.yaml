@@ -5,5 +5,4 @@ chainRpcs:
     rpcUrl: 'https://api.zan.top/eth-sepolia'
 
 dbFilePath: 'darkSwap-testnet.db'
-bookNodeSocketUrl: 'ws://stage.portalgate.me:20002'
-bookNodeApiUrl: 'https://stage.portalgate.me:20001'
+agentUrl: 'https://stage.portalgate.me:20004/api'

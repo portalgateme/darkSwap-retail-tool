@@ -40,32 +40,6 @@ export function registerAccountHandlers() {
     }
   )
 
-  // Deposit
-  ipcMain.handle(
-    'account:deposit',
-    async (event, chainId, wallet, asset, amount) => {
-      console.log('Depositing:', { chainId, wallet, asset, amount })
-      const dbInstance = getCurrentInstance()
-      await dbInstance
-        .getAssetManager()
-        .deposit({ chainId, wallet, asset, amount: amount.toString() })
-      return true
-    }
-  )
-
-  // Withdraw
-  ipcMain.handle(
-    'account:withdraw',
-    async (event, chainId, wallet, asset, amount) => {
-      const dbInstance = getCurrentInstance()
-
-      await dbInstance
-        .getAssetManager()
-        .withdraw({ chainId, wallet, asset, amount: amount.toString() })
-      return true
-    }
-  )
-
   // Add new wallet
   ipcMain.handle(
     'account:addWallet',

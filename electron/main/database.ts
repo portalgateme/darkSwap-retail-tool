@@ -20,7 +20,7 @@ if (!fs.existsSync(userDataPath))
 
 export const dbPath = path.join(userDataPath, config.dbFilePath)
 console.log('SQLite path:', dbPath)
-export const db = new Database(dbPath, { verbose: console.log })
+export const db = new Database(dbPath)
 
 // INITIALIZE DATABASE SCHEMA
 // Initialize wallets table if it doesn't exist
@@ -61,7 +61,6 @@ const configs = db.prepare('SELECT * FROM configs').all() as Array<{
   value: string
 }>
 
-console.log('Loaded wallets from DB:', wallets)
 console.log('Loaded configs from DB:', configs)
 
 initializeCoreReloader({ db, dbPath })

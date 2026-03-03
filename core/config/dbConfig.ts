@@ -34,6 +34,7 @@ export default {
     `CREATE TABLE IF NOT EXISTS ORDERS (
                                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                 orderId TEXT NOT NULL,
+                                                agentOrderId TEXT NULL, 
                                                 chainId INTEGER NOT NULL, 
                                                 assetPairId TEXT NOT NULL,
                                                 orderDirection INTEGER NOT NULL,
@@ -92,8 +93,10 @@ export default {
                                                 cycleState INTEGER NOT NULL,
                                                 startDirection INTEGER NOT NULL,
                                                 lastReceivedAmount TEXT,
+                                                lastOrderId TEXT,
                                                 activeOrderId TEXT,
                                                 lastRunAt INTEGER,
+                                                maxOrdersPerDay INTEGER,
                                                 createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                                 updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                                 UNIQUE(jobId, chainId, wallet)  -- Prevent duplicates based on jobId, chainId, and wallet
