@@ -220,6 +220,7 @@ export interface AutoOrderJobDto extends BaseDto {
   startDirection?: OrderDirection
   lastReceivedAmount?: string
   lastOrderId?: string
+  errorMessage?: string
   createdAt?: Date
   updatedAt?: Date
 }

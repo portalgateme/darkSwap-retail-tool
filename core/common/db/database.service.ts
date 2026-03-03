@@ -56,6 +56,7 @@ interface AutoOrderJobEntity {
   startDirection: number
   lastReceivedAmount?: string
   lastOrderId?: string
+  errorMessage?: string
   activeOrderId?: string
   lastRunAt?: number
   createdAt: Date
@@ -86,6 +87,12 @@ export class DatabaseService {
 
     try {
       this.db.exec('ALTER TABLE AUTO_ORDER_JOBS ADD COLUMN lastOrderId TEXT')
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      this.db.exec('ALTER TABLE AUTO_ORDER_JOBS ADD COLUMN errorMessage TEXT')
     } catch (e) {
       // ignore
     }
@@ -957,8 +964,8 @@ export class DatabaseService {
     const query = `INSERT INTO AUTO_ORDER_JOBS (
       jobId, chainId, wallet, assetPairId, orderDirection, orderType,
       timeInForce, stpMode, price, marketPrice, minPrice, maxPrice, amountOut, feeRatio,
-      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId, errorMessage
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
     const stmt = this.db.prepare(query)
     stmt.run(
@@ -985,7 +992,8 @@ export class DatabaseService {
       job.cycleState ?? AutoOrderCycleState.CREATE_SELL,
       job.startDirection ?? job.orderDirection,
       job.lastReceivedAmount ?? '0',
-      job.lastOrderId ?? null
+      job.lastOrderId ?? null,
+      job.errorMessage ?? null
     )
   }
 
@@ -1025,6 +1033,7 @@ export class DatabaseService {
       startDirection: row.startDirection,
       lastReceivedAmount: row.lastReceivedAmount,
       lastOrderId: row.lastOrderId,
+      errorMessage: row.errorMessage,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     }
@@ -1063,6 +1072,7 @@ export class DatabaseService {
       startDirection: row.startDirection,
       lastReceivedAmount: row.lastReceivedAmount,
       lastOrderId: row.lastOrderId,
+      errorMessage: row.errorMessage,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     }))
@@ -1100,6 +1110,15 @@ export class DatabaseService {
     const query = `UPDATE AUTO_ORDER_JOBS SET lastRunAt = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
     const stmt = this.db.prepare(query)
     stmt.run(lastRunAt, jobId)
+  }
+
+  public async updateAutoOrderJobErrorMessage(
+    jobId: string,
+    errorMessage: string | null
+  ) {
+    const query = `UPDATE AUTO_ORDER_JOBS SET errorMessage = ?, updatedAt = CURRENT_TIMESTAMP WHERE jobId = ?`
+    const stmt = this.db.prepare(query)
+    stmt.run(errorMessage, jobId)
   }
 
   public async updateAutoOrderJobsMarketPrice(
@@ -1226,6 +1245,7 @@ export class DatabaseService {
       startDirection: row.startDirection,
       lastReceivedAmount: row.lastReceivedAmount,
       lastOrderId: row.lastOrderId,
+      errorMessage: row.errorMessage,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
     }))
