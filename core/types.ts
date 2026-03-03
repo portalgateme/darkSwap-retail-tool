@@ -55,7 +55,8 @@ export enum OrderStatus {
   SETTLED = 3,
   CANCELLED = 4,
   NOT_TRIGGERED = 5,
-  TRIGGERED = 6
+  TRIGGERED = 6,
+  WITHDRAWN = 7
 }
 
 export enum AutoOrderJobStatus {
