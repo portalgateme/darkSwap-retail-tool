@@ -62,6 +62,7 @@ interface AutoOrderJobEntity {
   createdAt: Date
   updatedAt: Date
   orders?: AutoOrderJobOrderEntity[]
+  maxOrdersPerDay: number
 }
 
 interface AutoOrderJobOrderEntity {
@@ -965,8 +966,8 @@ export class DatabaseService {
     const query = `INSERT INTO AUTO_ORDER_JOBS (
       jobId, chainId, wallet, assetPairId, orderDirection, orderType,
       timeInForce, stpMode, price, marketPrice, minPrice, maxPrice, amountOut, feeRatio,
-      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId, errorMessage
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      startAt, endAt, intervalSeconds, status, activeOrderId, lastRunAt, cycleState, startDirection, lastReceivedAmount, lastOrderId, errorMessage, maxOrdersPerDay
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
     const stmt = this.db.prepare(query)
     stmt.run(
@@ -994,7 +995,8 @@ export class DatabaseService {
       job.startDirection ?? job.orderDirection,
       job.lastReceivedAmount ?? '0',
       job.lastOrderId ?? null,
-      job.errorMessage ?? null
+      job.errorMessage ?? null,
+      job.maxOrdersPerDay
     )
   }
 
@@ -1036,7 +1038,8 @@ export class DatabaseService {
       lastOrderId: row.lastOrderId,
       errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }
   }
 
@@ -1075,7 +1078,8 @@ export class DatabaseService {
       lastOrderId: row.lastOrderId,
       errorMessage: row.errorMessage,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt
+      updatedAt: row.updatedAt,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }))
   }
 
@@ -1257,7 +1261,8 @@ export class DatabaseService {
       errorMessage: row.errorMessage,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      orders: row.orders
+      orders: row.orders,
+      maxOrdersPerDay: row.maxOrdersPerDay
     }))
 
     console.log('Fetched auto order jobs with orders:', jobs)

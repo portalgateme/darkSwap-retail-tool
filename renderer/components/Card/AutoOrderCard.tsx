@@ -157,6 +157,20 @@ export const AutoOrderCard = ({
             variant='caption'
             color='#9CA3AF'
           >
+            Max {job.maxOrdersPerDay}
+          </Typography>
+          <Box
+            sx={{
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              background: '#6B7280'
+            }}
+          />
+          <Typography
+            variant='caption'
+            color='#9CA3AF'
+          >
             Today {ordersCreatedToday}
           </Typography>
           <Box

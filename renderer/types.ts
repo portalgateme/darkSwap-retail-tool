@@ -117,6 +117,7 @@ export interface AutoOrderJobDto {
   activeOrderId?: string | null
   lastRunAt?: number | null
   orders?: OrderEventDto[]
+  maxOrdersPerDay: number
 }
 
 export enum SortType {

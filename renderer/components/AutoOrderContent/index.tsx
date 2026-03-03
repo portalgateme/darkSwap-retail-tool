@@ -266,7 +266,8 @@ export const AutoOrderContent = () => {
       endAt: '',
       intervalSeconds: '15',
       orderDirection: OrderDirection.SELL,
-      orderType: OrderType.LIMIT
+      orderType: OrderType.LIMIT,
+      maxOrdersPerDay: '10'
     }))
     setSelectedWallet(selectedAccount || null)
   }
@@ -284,7 +285,8 @@ export const AutoOrderContent = () => {
       endAt: '',
       intervalSeconds: '15',
       orderDirection: OrderDirection.SELL,
-      orderType: OrderType.LIMIT
+      orderType: OrderType.LIMIT,
+      maxOrdersPerDay: '10'
     }))
   }
 
@@ -325,7 +327,8 @@ export const AutoOrderContent = () => {
         startAt: formData.startAt ? +formData.startAt : Date.now(),
         endAt: formData.endAt ? +formData.endAt : undefined,
         intervalSeconds: Number(formData.intervalSeconds),
-        status: AutoOrderJobStatus.ACTIVE
+        status: AutoOrderJobStatus.ACTIVE,
+        maxOrdersPerDay: Number(formData.maxOrdersPerDay)
       }
 
       // @ts-ignore

@@ -96,6 +96,7 @@ export default {
                                                 lastOrderId TEXT,
                                                 activeOrderId TEXT,
                                                 lastRunAt INTEGER,
+                                                maxOrdersPerDay INTEGER,
                                                 createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                                 updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                                 UNIQUE(jobId, chainId, wallet)  -- Prevent duplicates based on jobId, chainId, and wallet
