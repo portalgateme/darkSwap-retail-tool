@@ -37,7 +37,6 @@
     "axios": "^1.13.2",
     "better-sqlite3": "^11.8.0",
     "electron-serve": "^3.0.0",
-    "electron-updater": "^6.3.0",
     "ethers": "^6.15.0",
     "js-yaml": "^4.1.0",
     "next": "15.5.7",
