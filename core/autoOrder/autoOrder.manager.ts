@@ -194,7 +194,7 @@ export class AutoOrderManager {
   public async cancelJob(jobId: string) {
     await this.dbService.updateAutoOrderJobStatus(
       jobId,
-      AutoOrderJobStatus.CANCELLED
+      AutoOrderJobStatus.PRE_CANCELLED
     )
   }
 
@@ -241,9 +241,10 @@ export class AutoOrderManager {
 
     this.isTicking = true
     try {
-      const jobs = await this.dbService.getAutoOrderJobsByStatus(
-        AutoOrderJobStatus.ACTIVE
-      )
+      const jobs = await this.dbService.getAutoOrderJobsByStatus([
+        AutoOrderJobStatus.ACTIVE,
+        AutoOrderJobStatus.PRE_CANCELLED
+      ])
 
       if (!jobs.length) return
 
@@ -275,12 +276,14 @@ export class AutoOrderManager {
           }
 
           const ordersCreatedToday =
-            await this.dbService.getAutoOrderJobOrdersByJobId(job.jobId)
+            await this.dbService.getAutoOrderJobOrderCountOfTodayByJobId(
+              job.jobId
+            )
 
           if (
             (job.cycleState === AutoOrderCycleState.CREATE_SELL ||
               job.cycleState === AutoOrderCycleState.CREATE_BUY) &&
-            ordersCreatedToday.length >= job.maxOrdersPerDay
+            ordersCreatedToday >= job.maxOrdersPerDay
           ) {
             this.logger.info(
               `Job ${job.jobId} has reached max orders per day limit (${job.maxOrdersPerDay}), skipping until next day`
@@ -370,6 +373,15 @@ export class AutoOrderManager {
         AutoOrderCycleState.CREATE_BUY,
         now
       )
+      return
+    }
+
+    if (job.status === AutoOrderJobStatus.PRE_CANCELLED && !job.activeOrderId) {
+      await this.dbService.updateAutoOrderJobStatus(
+        job.jobId,
+        AutoOrderJobStatus.CANCELLED
+      )
+      this.logger.info(`Job ${job.jobId} marked as cancelled`)
       return
     }
 
@@ -569,6 +581,13 @@ export class AutoOrderManager {
         OrderStatus.WITHDRAWN
       )
 
+      if (job.status === AutoOrderJobStatus.PRE_CANCELLED) {
+        await this.dbService.updateAutoOrderJobStatus(
+          job.jobId,
+          AutoOrderJobStatus.CANCELLED
+        )
+      }
+
       this.logger.info(
         `[Auto Order Cycle] Job ${job.jobId} withdrawn SELL proceeds from ${order.orderId}, received ${order.amountIn}`
       )
@@ -580,6 +599,14 @@ export class AutoOrderManager {
     assetPair: any,
     now: number
   ) {
+    if (job.status === AutoOrderJobStatus.PRE_CANCELLED && !job.activeOrderId) {
+      await this.dbService.updateAutoOrderJobStatus(
+        job.jobId,
+        AutoOrderJobStatus.CANCELLED
+      )
+      this.logger.info(`Job ${job.jobId} marked as cancelled`)
+      return
+    }
     if (job.orderDirection === OrderDirection.SELL) {
       // Need to flip direction for buy order
       const tempJob = { ...job, orderDirection: OrderDirection.BUY }

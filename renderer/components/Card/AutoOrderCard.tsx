@@ -1,4 +1,11 @@
-import { Paper, Stack, Typography, Box, IconButton } from '@mui/material'
+import {
+  Paper,
+  Stack,
+  Typography,
+  Box,
+  IconButton,
+  Tooltip
+} from '@mui/material'
 import {
   AutoOrderJobDto,
   AutoOrderJobStatus,
@@ -7,7 +14,7 @@ import {
 } from '../../types'
 import { useAssetPairContext } from '../../contexts/AssetPairContext/hooks'
 import { Cancel, Pause, PlayArrow } from '@mui/icons-material'
-
+import WarningIcon from '@mui/icons-material/Warning'
 interface AutoOrderCardProps {
   job: AutoOrderJobDto
   openDetail: (job: AutoOrderJobDto) => void
@@ -39,14 +46,14 @@ export const AutoOrderCard = ({
 
   const ordersCreatedToday = job.orders
     ? job.orders.filter((o) => {
-        const createdAt = new Date(o.createdAt)
-        const today = new Date()
-        return (
-          createdAt.getDate() === today.getDate() &&
-          createdAt.getMonth() === today.getMonth() &&
-          createdAt.getFullYear() === today.getFullYear()
-        )
-      }).length
+      const createdAt = new Date(o.createdAt)
+      const today = new Date()
+      return (
+        createdAt.getDate() === today.getDate() &&
+        createdAt.getMonth() === today.getMonth() &&
+        createdAt.getFullYear() === today.getFullYear()
+      )
+    }).length
     : 0
 
   const ordersCreatedLifetime = job.orders ? job.orders.length : 0
@@ -64,23 +71,34 @@ export const AutoOrderCard = ({
       }}
     >
       <Stack spacing={1}>
-        <Typography
-          variant='body2'
-          color='#F3F4F6'
-          sx={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
+        <Stack
+          direction={'row'}
+          alignItems='center'
+          justifyContent={'space-between'}
         >
-          {job.jobId}
-        </Typography>
-        <Typography
-          variant='caption'
-          color='#9CA3AF'
-        >
-          Pair: {getPairLabel(job.assetPairId)}
-        </Typography>
+          <Typography
+            variant='body2'
+            color='#F3F4F6'
+            sx={{
+              width: '200px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {job.jobId}
+          </Typography>
+
+          {job.errorMessage && (
+            <Tooltip title={job.errorMessage}>
+              <WarningIcon
+                fontSize='small'
+                color='error'
+              />
+            </Tooltip>
+          )}
+        </Stack>
+
 
         <Stack
           direction='row'
@@ -91,7 +109,7 @@ export const AutoOrderCard = ({
             variant='caption'
             color='#9CA3AF'
           >
-            Type: {job.orderDirection === OrderDirection.BUY ? 'Buy' : 'Sell'}
+            Pair: {getPairLabel(job.assetPairId)}
           </Typography>
           <Box
             sx={{
@@ -105,8 +123,9 @@ export const AutoOrderCard = ({
             variant='caption'
             color='#9CA3AF'
           >
-            Range: {job.minPrice}-{job.maxPrice} {getPairUnit(job.assetPairId)}
+            Start From: {job.orderDirection === OrderDirection.BUY ? 'Buy' : 'Sell'}
           </Typography>
+
         </Stack>
 
         <Stack

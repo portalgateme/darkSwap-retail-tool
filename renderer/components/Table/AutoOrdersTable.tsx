@@ -42,19 +42,19 @@ export const AutoOrdersTable = ({
   loading
 }: AutoOrdersTableProps) => {
   const columns: Array<{
-    status: AutoOrderJobStatus
+    status: AutoOrderJobStatus[]
     title: string
     color: string
   }> = [
-    { status: AutoOrderJobStatus.ACTIVE, title: 'Active', color: '#68EB8E' },
-    { status: AutoOrderJobStatus.PAUSED, title: 'Paused', color: '#FFD666' },
+    { status: [AutoOrderJobStatus.ACTIVE], title: 'Active', color: '#68EB8E' },
+    { status: [AutoOrderJobStatus.PAUSED], title: 'Paused', color: '#FFD666' },
     // {
     //   status: AutoOrderJobStatus.COMPLETED,
     //   title: 'Completed',
     //   color: '#91C3FF'
     // },
     {
-      status: AutoOrderJobStatus.CANCELLED,
+      status: [AutoOrderJobStatus.CANCELLED, AutoOrderJobStatus.PRE_CANCELLED],
       title: 'Cancelled',
       color: '#FF7875'
     }
@@ -67,10 +67,12 @@ export const AutoOrdersTable = ({
       sx={{ overflowX: 'auto', pb: 1 }}
     >
       {columns.map((column) => {
-        const columnJobs = jobs.filter((job) => job.status === column.status)
+        const columnJobs = jobs.filter((job) =>
+          column.status.includes(job.status as AutoOrderJobStatus)
+        )
         return (
           <Grid
-            key={column.status}
+            key={column.status.join(',')}
             spacing={1}
             size={12 / columns.length}
           >

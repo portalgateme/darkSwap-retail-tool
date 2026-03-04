@@ -87,7 +87,8 @@ export enum AutoOrderJobStatus {
   ACTIVE = 0,
   PAUSED = 1,
   COMPLETED = 2,
-  CANCELLED = 3
+  CANCELLED = 3,
+  PRE_CANCELLED = 4
 }
 
 export interface OrderEvents extends OrderDto {
@@ -118,6 +119,7 @@ export interface AutoOrderJobDto {
   lastRunAt?: number | null
   orders?: OrderEventDto[]
   maxOrdersPerDay: number
+  errorMessage?: string
 }
 
 export enum SortType {

@@ -1044,11 +1044,11 @@ export class DatabaseService {
   }
 
   public async getAutoOrderJobsByStatus(
-    status: AutoOrderJobStatus
+    statuses: AutoOrderJobStatus[]
   ): Promise<AutoOrderJobDto[]> {
-    const query = `SELECT * FROM AUTO_ORDER_JOBS WHERE status = ?`
+    const query = `SELECT * FROM AUTO_ORDER_JOBS WHERE status IN (${statuses.map(() => '?').join(',')})`
     const stmt = this.db.prepare(query)
-    const rows = stmt.all(status) as AutoOrderJobEntity[]
+    const rows = stmt.all(...statuses) as AutoOrderJobEntity[]
 
     return rows.map((row) => ({
       id: row.id,
@@ -1263,7 +1263,7 @@ export class DatabaseService {
       orders: row.orders,
       maxOrdersPerDay: row.maxOrdersPerDay
     }))
-    
+
     return { jobs, total }
   }
 
@@ -1276,6 +1276,16 @@ export class DatabaseService {
 
     const stmt = this.db.prepare(query)
     stmt.run(log.jobId, log.orderId, log.chainId, log.wallet.toLowerCase())
+  }
+
+  public async getAutoOrderJobOrderCountOfTodayByJobId(
+    jobId: string
+  ): Promise<number> {
+    const query = `SELECT count(1) as totalOfToday FROM AUTO_ORDER_JOB_ORDERS WHERE jobId = ? AND strftime('%Y-%m-%d', createdAt) = strftime('%Y-%m-%d', 'now') ORDER BY createdAt DESC`
+    const stmt = this.db.prepare(query)
+    const rows = stmt.all(jobId) as { totalOfToday: number }[]
+
+    return rows[0].totalOfToday
   }
 
   public async getAutoOrderJobOrdersByJobId(
