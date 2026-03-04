@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import { db, config } from '../database'
-import { getCurrentInstance } from '../utils/coreReloader'
+import { db, config, dbPath } from '../database'
+import { getCurrentInstance, reloadCore } from '../utils/coreReloader'
 
 export const registerAssetPairHandlers = () => {
   ipcMain.handle('assetPair:syncAssetPairs', async (event) => {
@@ -22,9 +22,25 @@ export const registerAssetPairHandlers = () => {
   )
 
   ipcMain.handle('assetPair:getAssetPairs', async (event, chainId) => {
-    const assetPairs = db
+    let assetPairs = db
       .prepare('SELECT * FROM ASSET_PAIRS WHERE chainId = ?')
       .all(chainId)
+
+    if (assetPairs.length === 0) {
+      let dbInstance
+      try {
+        dbInstance = getCurrentInstance()
+      } catch {
+        await reloadCore(db, dbPath)
+        dbInstance = getCurrentInstance()
+      }
+
+      await dbInstance.getAssetPairService().syncAssetPairs([chainId])
+      assetPairs = db
+        .prepare('SELECT * FROM ASSET_PAIRS WHERE chainId = ?')
+        .all(chainId)
+    }
+
     return assetPairs
   })
 }
