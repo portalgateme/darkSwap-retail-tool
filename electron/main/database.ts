@@ -19,6 +19,8 @@ if (!fs.existsSync(userDataPath))
   fs.mkdirSync(userDataPath, { recursive: true })
 
 export const dbPath = path.join(userDataPath, config.dbFilePath)
+const dbDir = path.dirname(dbPath)
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true })
 console.log('SQLite path:', dbPath)
 export const db = new Database(dbPath)
 

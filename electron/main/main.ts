@@ -54,6 +54,10 @@ registerOrderHandlers()
 registerAutoOrderHandlers()
 registerRPCManagerHandlers()
 
+app.whenReady().then(async () => {
+  await import('./database')
+})
+
 app.on('ready', createWindow)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
