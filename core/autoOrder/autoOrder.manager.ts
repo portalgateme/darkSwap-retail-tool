@@ -276,12 +276,14 @@ export class AutoOrderManager {
           }
 
           const ordersCreatedToday =
-            await this.dbService.getAutoOrderJobOrdersByJobId(job.jobId)
+            await this.dbService.getAutoOrderJobOrderCountOfTodayByJobId(
+              job.jobId
+            )
 
           if (
             (job.cycleState === AutoOrderCycleState.CREATE_SELL ||
               job.cycleState === AutoOrderCycleState.CREATE_BUY) &&
-            ordersCreatedToday.length >= job.maxOrdersPerDay
+            ordersCreatedToday >= job.maxOrdersPerDay
           ) {
             this.logger.info(
               `Job ${job.jobId} has reached max orders per day limit (${job.maxOrdersPerDay}), skipping until next day`

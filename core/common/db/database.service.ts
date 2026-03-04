@@ -1278,6 +1278,16 @@ export class DatabaseService {
     stmt.run(log.jobId, log.orderId, log.chainId, log.wallet.toLowerCase())
   }
 
+  public async getAutoOrderJobOrderCountOfTodayByJobId(
+    jobId: string
+  ): Promise<number> {
+    const query = `SELECT count(1) as totalOfToday FROM AUTO_ORDER_JOB_ORDERS WHERE jobId = ? AND strftime('%Y-%m-%d', createdAt) = strftime('%Y-%m-%d', 'now') ORDER BY createdAt DESC`
+    const stmt = this.db.prepare(query)
+    const rows = stmt.all(jobId) as { totalOfToday: number }[]
+
+    return rows[0].totalOfToday
+  }
+
   public async getAutoOrderJobOrdersByJobId(
     jobId: string
   ): Promise<AutoOrderJobOrderDto[]> {
