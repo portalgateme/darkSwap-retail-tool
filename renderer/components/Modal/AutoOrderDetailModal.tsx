@@ -258,7 +258,7 @@ export const AutoOrderDetailModal = ({
                   InputLabelProps={{ style: { color: 'white' } }}
                 />
               )}
-              <TextField
+              {/* <TextField
                 label='Min Price'
                 value={editForm.minPrice}
                 onChange={(e) => onChangeEditForm({ minPrice: e.target.value })}
@@ -295,9 +295,9 @@ export const AutoOrderDetailModal = ({
                   }
                 }}
                 InputLabelProps={{ style: { color: 'white' } }}
-              />
+              /> */}
               <TextField
-                label='Amount Out'
+                label='Amount'
                 value={editForm.amountOut}
                 onChange={(e) =>
                   onChangeEditForm({ amountOut: e.target.value })
