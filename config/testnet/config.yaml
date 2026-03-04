@@ -4,5 +4,5 @@ chainRpcs:
   - chainId: 11155111
     rpcUrl: 'https://api.zan.top/eth-sepolia'
 
-dbFilePath: 'darkSwap-testnet.db'
+dbFilePath: 'darkSwap-retail-tool-testnet.db'
 agentUrl: 'https://stage.portalgate.me:20004/api'
