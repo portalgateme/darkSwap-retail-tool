@@ -198,7 +198,7 @@ export const CreateAutoOrderForm: React.FC<CreateAutoOrderFormProps> = ({
           }}
           color='success'
         >
-          <MenuItem value={PriceType.LIMIT}>Use Fixed Price</MenuItem>
+          {/* <MenuItem value={PriceType.LIMIT}>Use Fixed Price</MenuItem> */}
           <MenuItem value={PriceType.MARKET}>Use Market Price</MenuItem>
         </Select>
 

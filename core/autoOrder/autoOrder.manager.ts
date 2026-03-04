@@ -121,60 +121,7 @@ export class AutoOrderManager {
   public async updateJob(
     job: AutoOrderJobDto
   ): Promise<AutoOrderJobDto | null> {
-    if (!job.jobId) {
-      throw new Error('jobId is required')
-    }
-
-    const existing = await this.dbService.getAutoOrderJobByJobId(job.jobId)
-    if (!existing) {
-      throw new Error('Job not found')
-    }
-
-    if (
-      existing.status === AutoOrderJobStatus.CANCELLED ||
-      existing.status === AutoOrderJobStatus.COMPLETED
-    ) {
-      throw new Error('Job is not editable')
-    }
-
-    if (existing.activeOrderId) {
-      throw new Error('Job has an active order and cannot be edited')
-    }
-
-    const merged: AutoOrderJobDto = {
-      ...existing,
-      ...job
-    }
-
-    if (!merged.intervalSeconds || merged.intervalSeconds <= 0) {
-      merged.intervalSeconds = this.defaultIntervalSeconds
-    }
-
-    if (!merged.startAt || merged.startAt <= 0) {
-      merged.startAt = Date.now()
-    }
-
-    if (merged.endAt && merged.endAt <= merged.startAt) {
-      throw new Error('endAt must be greater than startAt')
-    }
-
-    if (
-      merged.orderType === OrderType.LIMIT ||
-      merged.orderType === OrderType.LIMIT_MAKER
-    ) {
-      const limitPrice = Number(merged.price)
-      if (isNaN(limitPrice) || limitPrice <= 0) {
-        throw new Error('price is required for limit orders')
-      }
-    } else {
-      merged.price = merged.price || '0'
-    }
-
-    merged.marketPrice = merged.marketPrice || '0'
-
-    await this.dbService.updateAutoOrderJob(merged)
-
-    return await this.dbService.getAutoOrderJobByJobId(merged.jobId)
+    throw new Error('Job is not editable')
   }
 
   public async pauseJob(jobId: string) {

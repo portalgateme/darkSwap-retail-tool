@@ -135,6 +135,7 @@ export interface BaseDto {
 export interface OrderDto extends BaseDto {
   id?: number
   orderId: string
+  agentOrderId?: string
   assetPairId: string
   orderDirection: OrderDirection
   orderType: OrderType

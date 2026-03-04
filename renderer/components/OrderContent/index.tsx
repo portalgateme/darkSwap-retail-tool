@@ -405,7 +405,8 @@ export const OrderContent = () => {
                 }
               }}
             >
-              <TableCell>Id</TableCell>
+              <TableCell>LocalId</TableCell>
+              <TableCell>OrderId</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Pair Id</TableCell>
               <TableCell>Side</TableCell>
@@ -466,6 +467,43 @@ export const OrderContent = () => {
                           <ContentCopyIcon sx={{ fontSize: '16px' }} />
                         </Button>
                       )}
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Stack
+                      direction='row'
+                      alignItems='center'
+                      spacing={1}
+                    >
+                      <span
+                        style={{
+                          maxWidth: '100px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          display: 'inline-block'
+                        }}
+                      >
+                        {row.agentOrderId || ''}
+                      </span>
+                      {copied === row.agentOrderId ? (
+                        <CheckIcon
+                          sx={{ fontSize: '16px', color: '#68EB8E' }}
+                        />
+                      ) : (
+                        row.agentOrderId && (
+                          <Button
+                            size='small'
+                            onClick={() => onCopy(row.agentOrderId || '')}
+                            sx={{
+                              minWidth: 'auto',
+                              padding: '4px',
+                              color: '#68EB8E'
+                            }}
+                          >
+                          <ContentCopyIcon sx={{ fontSize: '16px' }} />
+                        </Button>
+                      ))}
                     </Stack>
                   </TableCell>
                   <TableCell>

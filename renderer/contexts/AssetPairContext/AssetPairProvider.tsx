@@ -31,9 +31,9 @@ export const AssetPairProvider: React.FC<{ children: ReactNode }> = ({
 
   const fetchAssetPairs = async (chainId: number) => {
     // @ts-ignore
-    const assetPairs = (await window.assetPairAPI.getAssetPairs(
+    const assetPairs = ((await window.assetPairAPI.getAssetPairs(
       chainId
-    )) as AssetPairDto[]
+    )) as AssetPairDto[]).sort((a, b) => b.id.localeCompare(a.id))
 
     setList(assetPairs)
 
