@@ -885,6 +885,7 @@ export class DatabaseService {
     const orders = rows.map((row) => ({
       id: row.id,
       orderId: row.orderId,
+      agentOrderId: row.agentOrderId,
       chainId: row.chainId,
       assetPairId: row.assetPairId,
       orderDirection: row.orderDirection,
