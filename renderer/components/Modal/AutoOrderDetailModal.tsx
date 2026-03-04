@@ -400,23 +400,6 @@ export const AutoOrderDetailModal = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={closeDetail}>Close</Button>
-        {selectedJob && (
-          <Button
-            variant='outlined'
-            onClick={onChangeEditMode}
-            disabled={!isEditable}
-          >
-            {editMode ? 'Cancel Edit' : 'Edit'}
-          </Button>
-        )}
-        {editMode && (
-          <Button
-            variant='contained'
-            onClick={onUpdateJob}
-          >
-            Save Changes
-          </Button>
-        )}
       </DialogActions>
     </Dialog>
   )
