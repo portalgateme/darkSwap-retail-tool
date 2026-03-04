@@ -6,7 +6,7 @@ import { hardhatArbContracts } from './contracts/hardhatArb'
 const confirmationsConfig: { [chainId: number]: number } = {
   [ChainId.MAINNET]: 3,
   [ChainId.ARBITRUM_ONE]: 12,
-  [ChainId.BASE]: 12,
+  [ChainId.BASE]: 6,
   [ChainId.SEPOLIA]: 2,
   [ChainId.HORIZEN_TESTNET]: 2,
   [ChainId.HARDHAT]: 3
@@ -19,36 +19,15 @@ export function getConfirmations(chainId: number): number {
 }
 
 export const networkConfig: { [chainId: number]: NetworkConfig } = {
-  [ChainId.MAINNET]: {
-    priceOracle: '0x0AdDd25a91563696D8567Df78D5A01C9a991F9B8',
-    ethAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    nativeWrapper: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-    merkleTreeOperator: '0x0', //FIXME
-    darkSwapAssetManager: '0x0', //FIXME
-    darkSwapFeeAssetManager: '0x0', //FIXME
-    drakSwapSubgraphUrl:
-      'https://subgraph.satsuma-prod.com/1c6a44a9ed6e/pgs-team--611591/singularity-subgraph/api'
-  },
-  [ChainId.ARBITRUM_ONE]: {
-    priceOracle: '0x0AdDd25a91563696D8567Df78D5A01C9a991F9B8',
-    ethAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-    nativeWrapper: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-    merkleTreeOperator: '0x0', //FIXME
-    darkSwapAssetManager: '0x0', //FIXME
-    darkSwapFeeAssetManager: '0x0', //FIXME
-    drakSwapSubgraphUrl:
-      'https://subgraph.satsuma-prod.com/1c6a44a9ed6e/pgs-team--611591/singularity-arb-subgraph/api'
-  },
   [ChainId.BASE]: {
     priceOracle: '0xf224a25453D76A41c4427DD1C05369BC9f498444',
     ethAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     nativeWrapper: '0x4200000000000000000000000000000000000006',
     merkleTreeOperator: '0x918B4F76CAE5F67A3818D8eD3d0e11D9888684E9',
-    darkSwapAssetManager: '0x6fbA1F1aAb8449b7ba576E41F4617d918391b7cF',
     darkSwapFeeAssetManager: '0xfde341e63EB2f25A32D353d58C2DAd7f91c8Bd57',
-
+    darkSwapAssetManager: '0x6fbA1F1aAb8449b7ba576E41F4617d918391b7cF',
     drakSwapSubgraphUrl:
-      'https://bb.subgraph.thesingularity.network/darkswapBase'
+      'https://subgraph.thesingularity.network/darkswapBase'
   },
   [ChainId.SEPOLIA]: {
     priceOracle: '0xd9EF5ef50e746B01f471542B1123a23C2Df3168B',
