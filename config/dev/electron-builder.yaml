@@ -1,5 +1,5 @@
-appId: 'com.darkswap.desktop'
-productName: 'Darkswap Retail Tool'
+appId: 'com.darkswap.trading'
+productName: 'Darkswap Trading Tool'
 artifactName: '${productName}-setup-${version}-dev.${ext}'
 directories:
   output: 'release/dev'

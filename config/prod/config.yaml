@@ -2,5 +2,5 @@ chainRpcs:
   - chainId: 8453
     rpcUrl: 'https://base-rpc.publicnode.com'
 
-dbFilePath: 'app.db'
+dbFilePath: 'darkSwap-retail-tool-prod.db'
 agentUrl: 'https://agent.darkswap.me/api'
