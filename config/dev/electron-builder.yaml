@@ -20,7 +20,10 @@ win:
         - 'x64'
 mac:
   target:
-    - 'dmg'
+    - target: dmg
+      arch:
+        - x64
+        - arm64
   icon: 'assets/icon.icns'
 linux:
   target:
