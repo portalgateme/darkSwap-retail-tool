@@ -12,13 +12,19 @@ on:
           - prod
           - testnet
           - dev
+      publish:
+        description: Publish release to GitHub
+        required: true
+        type: boolean
+        default: false
 
 jobs:
   build-windows:
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: write
     env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_FLAVOR: ${{ github.event.inputs.flavor || 'prod' }}
       ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
       ELECTRON_BUILDER_CACHE: ${{ github.workspace }}\.cache\electron-builder
@@ -63,7 +69,13 @@ jobs:
 
       - name: Build installer
         shell: pwsh
-        run: yarn run build:$env:BUILD_FLAVOR -- --publish=never
+        run: |
+          $PUBLISH_FLAG = "--publish=never"
+          if ("${{ github.event.inputs.publish }}" -eq "true") {
+            $PUBLISH_FLAG = "--publish=always"
+          }
+          Write-Host "Building with flavor: $env:BUILD_FLAVOR, publish: $PUBLISH_FLAG"
+          yarn run build:$env:BUILD_FLAVOR -- $PUBLISH_FLAG
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
