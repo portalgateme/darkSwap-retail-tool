@@ -707,6 +707,7 @@ export class DatabaseService {
     const order = {
       id: row.id,
       orderId: row.orderId,
+      agentOrderId: row.agentOrderId,
       chainId: row.chainId,
       assetPairId: row.assetPairId,
       orderDirection: row.orderDirection,
