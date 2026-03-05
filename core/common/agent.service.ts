@@ -203,4 +203,31 @@ export class AgentService {
             return false
         }
     };
+
+    public async finalizeOrder(chainId: number, wallet: string, agentOrderId: string, signer: ethers.Signer): Promise<void> {
+        const agentUrl = this.config.agentUrl;
+
+        const timestamp = new Date().toISOString()
+        const message = `${wallet.toLowerCase()} is logging in to Singularity Protocol at ${timestamp}`
+        const signature = await this.signMessage(message, signer);
+
+        const response = await axios({
+            method: 'post',
+            url: `${agentUrl}/orders/completeOrder`,
+            data: {
+                wallet: wallet,
+                chainId: chainId,
+                orderId: agentOrderId,
+            },
+            headers: {
+                'x-wallet-address': wallet.toLowerCase(),
+                'x-wallet-signature': signature,
+                'x-wallet-timestamp': timestamp,
+            },
+        })
+        if (response.status !== 200 && response.status !== 201) {
+            console.log('Finalize order failed', response.data);
+            throw new Error('Finalize order failed');
+        }
+    }
 }

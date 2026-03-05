@@ -104,10 +104,8 @@ export class OrderRetailService {
     )
 
     this.logger.info(
-      `Order created: ${
-        orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
-      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${
-        orderDto.amountOut
+      `Order created: ${orderDto.orderDirection === OrderDirection.BUY ? 'BUY' : 'SELL'
+      } ${orderDto.orderId} ${orderDto.assetPairId} OUT: ${orderDto.amountOut
       } IN: ${orderDto.amountIn}`
     )
   }
@@ -386,5 +384,14 @@ export class OrderRetailService {
         console.error(`Error syncing status for order ${order.orderId}:`, error)
       }
     }
+  }
+
+  public async postWithdraw(chainId: number, wallet: string, agentOrderId: string) {
+    const context = await DarkSwapContext.createDarkSwapContext(
+      chainId,
+      wallet,
+      this.rpcManager
+    )
+    await this.agentService.finalizeOrder(chainId, wallet, agentOrderId, context.signer);
   }
 }

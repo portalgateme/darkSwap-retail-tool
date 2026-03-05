@@ -504,6 +504,12 @@ export class AutoOrderManager {
         await this.assetManager.withdrawNote(withdrawNoteDto)
       }
 
+      await this.orderRetailService.postWithdraw(
+        order.chainId,
+        order.wallet,
+        order.agentOrderId!
+      )
+
       await this.dbService.updateAutoOrderJobActiveOrder(job.jobId, null, now)
 
       // Mark orders to WITHDRAWN status
