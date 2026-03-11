@@ -31,7 +31,6 @@ const PRICE_DECIMALS = 18
 export class AutoOrderManager {
   private readonly logger = new Logger({ name: AutoOrderManager.name })
   private dbService: DatabaseService
-  private assetManager: AssetManager
   private orderRetailManager: OrderRetailManager
   private orderRetailService: OrderRetailService
   private orderEventService: OrderEventService
@@ -43,14 +42,12 @@ export class AutoOrderManager {
   public constructor(
     dbService: DatabaseService,
     orderRetailManager: OrderRetailManager,
-    assetManager: AssetManager,
     orderRetailService: OrderRetailService,
     subgraphService: SubgraphService,
     orderEventService: OrderEventService
   ) {
     this.dbService = dbService
     this.orderRetailManager = orderRetailManager
-    this.assetManager = assetManager
     this.orderRetailService = orderRetailService
     this.subgraphService = subgraphService
     this.orderEventService = orderEventService
@@ -495,13 +492,7 @@ export class AutoOrderManager {
         hexlify32(nullifier)
       )
       if (!withdrawTx) {
-        const withdrawNoteDto: WithdrawNoteDto = {
-          chainId: order.chainId,
-          wallet: order.wallet,
-          note: swapMessage.inNote
-        }
-
-        await this.assetManager.withdrawNote(withdrawNoteDto)
+        await this.orderRetailManager.withdrawOrder(order.chainId, order.wallet, swapMessage)
       }
 
       await this.orderRetailService.postWithdraw(

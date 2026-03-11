@@ -1,3 +1,4 @@
+import { DarkSwapMessage } from '@thesingularitynetwork/darkswap-sdk'
 import { DarkSwapContext } from './common/context/darkSwap.context'
 import { WalletMutexService } from './common/mutex/walletMutex.service'
 import { RpcManager } from './common/rpcManager'
@@ -106,6 +107,22 @@ export class OrderRetailManager {
     )
     await mutex.runExclusive(async () => {
       await this.orderRetailService.cancelOrder(cancelOrderDto.orderId, context)
+    })
+  }
+
+  public async withdrawOrder(chainId: number, wallet: string, swapMessage: DarkSwapMessage) {
+    const context = await DarkSwapContext.createDarkSwapContext(
+      chainId,
+      wallet,
+      this.rpcManager
+    )
+
+    const mutex = this.walletMutexService.getMutex(
+      context.chainId,
+      context.walletAddress.toLowerCase()
+    )
+    await mutex.runExclusive(async () => {
+      await this.orderRetailService.withdrawRetailOrder(context, swapMessage)
     })
   }
 

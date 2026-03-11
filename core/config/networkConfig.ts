@@ -61,7 +61,7 @@ export const networkConfig: { [chainId: number]: NetworkConfig } = {
       hardhatContracts.darkSwapFeeAssetManager as HexData,
 
     drakSwapSubgraphUrl:
-      'https://app.dev.portalgate.me:8080/subgraphs/name/singularity/'
+      'https://app.dev.portalgate.me:8080/subgraphs/name/darkswap/'
   },
   [ChainId.HARDHAT_ARBITRUM]: {
     priceOracle: '0x0AdDd25a91563696D8567Df78D5A01C9a991F9B8',

@@ -11,7 +11,7 @@ export const hardhatTokens = [
     name: 'Tether USD',
     symbol: 'USDT',
     decimals: 6,
-    address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+    address: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
     logoURI: '/tokens/USDT.png',
     isTop: true
   },
@@ -19,7 +19,7 @@ export const hardhatTokens = [
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6,
-    address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    address: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
     logoURI: '/tokens/USDC.png',
     isTop: true
   }

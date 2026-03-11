@@ -287,6 +287,7 @@ export interface WithdrawDto extends BaseDto {
 
 export interface WithdrawNoteDto extends BaseDto {
   note: DarkSwapNote
+  version?: number
 }
 
 export enum SortType {

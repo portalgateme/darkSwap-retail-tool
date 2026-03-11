@@ -1,4 +1,4 @@
-name: Build macOS Installer
+name: Build all
 
 on:
   workflow_dispatch:
