@@ -12,6 +12,7 @@ import RequireVersionModal from '../Modal/RequireVersionModal'
 import semver from 'semver'
 import { useAutoUpdate } from '../../hooks/useAutoUpdate'
 import UpdateModal from '../Modal/UpdateModal'
+import { AgreementModal } from '../Modal/AgreementModal'
 
 export const Layout = ({
   title,
@@ -104,6 +105,8 @@ export const Layout = ({
         <Header title={title} />
         {children}
       </Box>
+
+      <AgreementModal />
 
       <WalletSetupModal
         open={openAddModal}
