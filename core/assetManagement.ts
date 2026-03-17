@@ -1,5 +1,5 @@
+import { DarkSwapMessage } from '@thesingularitynetwork/darkswap-sdk'
 import { AccountService } from './account/account.service'
-import { BasicService } from './basic/basic.service'
 import { DarkSwapContext } from './common/context/darkSwap.context'
 import { WalletMutexService } from './common/mutex/walletMutex.service'
 import { RpcManager } from './common/rpcManager'
@@ -15,17 +15,14 @@ import {
 export class AssetManager {
   private walletMutexService: WalletMutexService
   private accountService: AccountService
-  private basicService: BasicService
   private rpcManager: RpcManager
 
   constructor(
     accountService: AccountService,
-    basicService: BasicService,
     rpcManager: RpcManager
   ) {
     this.walletMutexService = WalletMutexService.getInstance()
     this.accountService = accountService
-    this.basicService = basicService
     this.rpcManager = rpcManager
   }
 
@@ -84,21 +81,6 @@ export class AssetManager {
         syncAssetDto.chainId,
         syncAssetDto.asset
       )
-    })
-  }
-
-  public async withdrawNote(withdrawNoteDto: WithdrawNoteDto) {
-    const context = await DarkSwapContext.createDarkSwapContext(
-      withdrawNoteDto.chainId,
-      withdrawNoteDto.wallet,
-      this.rpcManager
-    )
-    const mutex = this.walletMutexService.getMutex(
-      context.chainId,
-      context.walletAddress.toLowerCase()
-    )
-    await mutex.runExclusive(async () => {
-      await this.basicService.withdrawNote(context, withdrawNoteDto.note)
     })
   }
 }

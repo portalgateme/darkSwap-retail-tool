@@ -1,19 +1,23 @@
 import {
-  calcNullifier,
+  createNoteCryptoContext,
   DarkSwapError,
   DarkSwapMessage,
-  DarkSwapOrderNote,
+  DEFAULT_VERSION,
+  deriveKey,
   deserializeDarkSwapMessage,
   hexlify32,
   RetailCancelOrderService,
   RetailCreateOrderService,
-  serializeDarkSwapMessage
+  serializeDarkSwapMessage,
+  WithdrawService
 } from '@thesingularitynetwork/darkswap-sdk'
 import { Logger } from 'tslog'
 import { v4 } from 'uuid'
+import { AssetManager } from '../assetManagement'
 import { AgentService } from '../common/agent.service'
 import { DarkSwapContext } from '../common/context/darkSwap.context'
 import { DatabaseService } from '../common/db/database.service'
+import { NoteService } from '../common/note.service'
 import { RpcManager } from '../common/rpcManager'
 import { SubgraphService } from '../common/subgraph.service'
 import { getConfirmations } from '../config/networkConfig'
@@ -23,14 +27,11 @@ import {
   OrderDto,
   OrderNoteStatus,
   OrderRetailDto,
-  OrderStatus,
-  WithdrawNoteDto
+  OrderStatus
 } from '../types'
 import { getBalance } from '../utils/getBalance'
 import { checkPrice } from '../utils/priceUtil'
 import { OrderEventService } from './orderEvent.service'
-import { NoteService } from '../common/note.service'
-import { AssetManager } from '../assetManagement'
 
 export class OrderRetailService {
   private readonly logger = new Logger({ name: OrderRetailService.name })
@@ -142,10 +143,15 @@ export class OrderRetailService {
         )
         return
       } else {
-        context = await retailCreateOrderService.rebuildContextFromSwapMessage(
-          swapMessage,
-          darkSwapContext.signature
+        const sig = darkSwapContext.getSignatureByMessageVersion(
+          swapMessage.version
         )
+        context =
+          await retailCreateOrderService.rebuildContextFromSwapMessage(
+            swapMessage,
+            sig,
+            darkSwapContext.cryptoContext
+          )
       }
     } else {
       const assetPair = await this.dbService.getAssetPairById(
@@ -197,13 +203,16 @@ export class OrderRetailService {
         throw new DarkSwapError(`Insufficient Asset ${outAsset}`)
       }
 
+      const sig = darkSwapContext.signatureV2
       const result = await retailCreateOrderService.prepare(
         darkSwapContext.walletAddress,
         outAsset,
         BigInt(orderDto.amountOut),
         inAsset,
         BigInt(orderDto.amountIn),
-        darkSwapContext.signature
+        sig,
+        darkSwapContext.cryptoContext,
+        DEFAULT_VERSION
       )
       context = result.context
       swapMessage = result.swapMessage
@@ -264,10 +273,14 @@ export class OrderRetailService {
         darkSwapContext.darkSwap
       )
 
+      const sig = darkSwapContext.getSignatureByMessageVersion(
+        swapMessage.version
+      )
+
       const { context } = await retailCancelOrderService.prepare(
         darkSwapContext.walletAddress,
         swapMessage.orderNote,
-        darkSwapContext.signature
+        sig
       )
 
       const tx = await retailCancelOrderService.execute(context)
@@ -393,5 +406,33 @@ export class OrderRetailService {
       this.rpcManager
     )
     await this.agentService.finalizeOrder(chainId, wallet, agentOrderId, context.signer);
+  }
+
+  public async withdrawRetailOrder(darkSwapContext: DarkSwapContext, swapMessage: DarkSwapMessage) {
+    const withdrawService = new WithdrawService(darkSwapContext.darkSwap)
+
+    const sig = darkSwapContext.getSignatureByMessageVersion(swapMessage.version)
+
+    const { context: withdrawContext } =
+      await withdrawService.prepare(
+        darkSwapContext.walletAddress,
+        swapMessage.inNote,
+        swapMessage.inNote.amount,
+        sig
+      )
+
+    const tx = await withdrawService.execute(withdrawContext)
+
+    const receipt = await darkSwapContext.darkSwap.provider.waitForTransaction(
+      tx,
+      getConfirmations(darkSwapContext.chainId)
+    )
+    if (receipt && receipt.status !== 1) {
+      throw new DarkSwapError('Withdraw failed')
+    }
+
+    this.logger.info(
+      `Withdraw of ${swapMessage.inNote.amount} ${swapMessage.inNote.asset} for wallet ${darkSwapContext.walletAddress} completed with tx ${withdrawContext.tx}`
+    )
   }
 }

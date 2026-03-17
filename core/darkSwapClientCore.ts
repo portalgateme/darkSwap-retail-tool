@@ -11,7 +11,6 @@ import { AssetPairService } from './common/assetPair.service'
 import { WalletMutexService } from './common/mutex/walletMutex.service'
 import { OrderService } from './orders/order.service'
 import { AccountService } from './account/account.service'
-import { BasicService } from './basic/basic.service'
 import { RpcManager } from './common/rpcManager'
 import { AutoOrderManager } from './autoOrder/autoOrder.manager'
 import { OrderRetailManager } from './retailOrderManagement'
@@ -47,11 +46,9 @@ export class DarkSwapClientCore {
       this.rpcManager
     )
     const accountService = new AccountService(config, dbService)
-    const basicService = new BasicService(dbService, noteService)
 
     this.assetManager = new AssetManager(
       accountService,
-      basicService,
       this.rpcManager
     )
 
@@ -80,7 +77,6 @@ export class DarkSwapClientCore {
     this.autoOrderManager = new AutoOrderManager(
       dbService,
       this.orderRetailManager,
-      this.assetManager,
       orderRetailService,
       subgraphService,
       orderEventService
