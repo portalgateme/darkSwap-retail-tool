@@ -856,10 +856,10 @@
   dependencies:
     defer-to-connect "^2.0.0"
 
-"@thesingularitynetwork/darkswap-sdk@^0.3.0-beta8":
-  version "0.3.0-beta8"
-  resolved "https://registry.yarnpkg.com/@thesingularitynetwork/darkswap-sdk/-/darkswap-sdk-0.3.0-beta8.tgz#aa02481c02a08deadb4c766e4e6683ca0fd4ad23"
-  integrity sha512-2vHtPhgSCb+7dsqoIeGEBMehdEJ1mghMOGlVZWU2HR1vk0Cam/Vla3pjOPQsfiA760LtvIM7J9VHVnIXsyZBug==
+"@thesingularitynetwork/darkswap-sdk@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@thesingularitynetwork/darkswap-sdk/-/darkswap-sdk-0.3.1.tgz#cd852dabfa0b4ba4eb7e876242755d990e2eb5de"
+  integrity sha512-SF8+8GJpEhjTYYj5KKnJkTd+qrfAKDJNM9jw/f+m3xn3x/D18PsgRkD2RgSyachQCloAFbxu/NCnSagABS8FSQ==
   dependencies:
     "@aztec/bb.js" "0.84.0"
     "@noble/ciphers" "^2.1.1"
@@ -1222,7 +1222,7 @@ at-least-node@^1.0.0:
   resolved "https://registry.yarnpkg.com/at-least-node/-/at-least-node-1.0.0.tgz#602cd4b46e844ad4effc92a8011a3c46e0238dc2"
   integrity sha512-+q/t7Ekv1EDY2l6Gda6LLiX14rU9TV20Wa3ofeQmwPFZbOMo9DXrLbOjFaaclkXKWidIaopwAObQDqwWtGUjqg==
 
-axios@^1.13.2:
+axios@1.13.2:
   version "1.13.2"
   resolved "https://registry.yarnpkg.com/axios/-/axios-1.13.2.tgz#9ada120b7b5ab24509553ec3e40123521117f687"
   integrity sha512-VPk9ebNqPcy5lRGuSlKx752IlDatOjT9paPlm8A7yOuW2Fbvp4X3JznJtT4f0GzGLLiWE9W8onz51SqLYwzGaA==

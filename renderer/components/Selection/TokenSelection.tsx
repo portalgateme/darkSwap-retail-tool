@@ -123,7 +123,7 @@ const TokenSelection: React.FC<TokenSelection> = ({
                 alignItems='center'
               >
                 <Image
-                  src={token.logoURI || '/default-token.png'}
+                  src={token.logoURI || '/default-token.svg'}
                   alt={token.name || 'token'}
                   width={24}
                   height={24}
