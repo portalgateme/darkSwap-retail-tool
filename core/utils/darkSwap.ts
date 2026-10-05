@@ -17,7 +17,9 @@ export function getDarkSwap(chainId: number, signer: Signer) {
       nativeWrapper: networkConfig[chainId].nativeWrapper,
       merkleTreeOperator: networkConfig[chainId].merkleTreeOperator,
       darkSwapAssetManager: networkConfig[chainId].darkSwapAssetManager,
-      darkSwapFeeAssetManager: networkConfig[chainId].darkSwapFeeAssetManager
+      darkSwapFeeAssetManager: networkConfig[chainId].darkSwapFeeAssetManager,
+      // required by the SDK since 0.4; only the partial-order services use it, which this tool doesn't
+      darkSwapPartialAssetManager: networkConfig[chainId].darkSwapPartialAssetManager ?? '0x0'
     }
   )
 
